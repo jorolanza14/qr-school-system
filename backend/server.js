@@ -18,6 +18,144 @@ app.get('/', (req, res) => {
 });
 
 // =========================================================================
+// 🗓️ CENTRALIZED CAMPUS EVENTS & SEMINARS LEDGER (Cross-Browser Fix)
+// =========================================================================
+
+// Global In-Memory Events Ledger Array (Initial state fallback seeds)
+let campusEvents = [
+  { id: 1, title: 'BSIT Capstone Final Defense', date: '2026-06-15', time: '08:00 AM', location: 'IT Lab 3, Building B', organizer: 'Dean Office', desc: 'Final grading presentation loop for all 4th-year technology projects.' },
+  { id: 2, title: 'Campus Sports Festival 2026', date: '2026-06-22', time: '01:00 PM', location: 'Grand Gymnasium', organizer: 'Student Council', desc: 'Annual inter-college athletic tournaments and opening ceremonies.' }
+];
+
+// 🚀 Admin posts a brand-new event notice record to the centralized server ledger
+app.post('/api/admin/add-event', (req, res) => {
+  const { title, date, time, location, desc, organizer } = req.body;
+  
+  if (!title || !date || !location) {
+    return res.status(400).json({ success: false, message: "Required event fields missing." });
+  }
+
+  const eventRecord = {
+    id: Date.now(),
+    title,
+    date,
+    time: time || 'All Day',
+    location,
+    organizer: organizer || 'Admin Office',
+    desc: desc || 'No additional details provided.'
+  };
+
+  // Prepend new event to the top of the global tracking array matrix
+  campusEvents = [eventRecord, ...campusEvents];
+
+  res.json({ success: true, message: 'Event broadcasted to centralized backend memory array!', list: campusEvents });
+});
+
+// 📡 Students pull the complete, synchronized campus events list live
+app.get('/api/student/events-list', (req, res) => {
+  res.json({ success: true, list: campusEvents });
+});
+
+
+// =========================================================================
+// 📚 CENTRALIZED IN-MEMORY LIBRARY STATE LEDGER (Persistent Across Tab Swaps)
+// =========================================================================
+
+// Global In-Memory Fallback Seeds to hold assets added dynamically by the librarian
+let dynamicLibraryCatalog = {
+  "BK-FULLSTACK-01": { title: "Full-Stack Software Architecture", author: "Enzo Rolando", status: "Available", borrowedBy: null },
+  "BK-NETWORKS-02": { title: "Cisco Routing Foundations", author: "Dr. A. Cruz", status: "Available", borrowedBy: null }
+};
+
+// 🆕 Librarian registers a brand new asset row permanently to server state
+app.post('/api/library/add-book', (req, res) => {
+  const { barcode, title, author } = req.body;
+
+  if (!barcode || !title) {
+    return res.status(400).json({ success: false, message: "Required asset parameters missing (Barcode/Title)." });
+  }
+
+  const cleanBarcode = barcode.toUpperCase().trim();
+
+  // Guard condition rule: Prevent overwriting an existing book barcode signature
+  if (dynamicLibraryCatalog[cleanBarcode]) {
+    return res.status(400).json({ success: false, message: "This asset barcode identifier is already registered." });
+  }
+
+  // Save directly to our global memory instance dictionary layer
+  dynamicLibraryCatalog[cleanBarcode] = {
+    title: title.trim(),
+    author: author ? author.trim() : 'Unknown Author',
+    status: 'Available',
+    borrowedBy: null
+  };
+
+  res.json({ 
+    success: true, 
+    message: `Asset successfully cataloged under tag ${cleanBarcode}!`,
+    inventory: dynamicLibraryCatalog 
+  });
+});
+
+
+// =========================================================================
+// 📁 CENTRALIZED ACADEMIC CLASSROOM RESOURCES MATRIX
+// =========================================================================
+
+// Global In-Memory Academic Resources Ledger Array (Persistent Fallback Seed Data)
+let classroomResources = [
+  {
+    id: 1,
+    title: 'Syllabus - Software Engineering 101',
+    professor: 'Prof. Smith',
+    type: 'PDF',
+    fileSize: '1.4 MB',
+    dateAdded: '2026-06-01',
+    downloadUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+  },
+  {
+    id: 2,
+    title: 'Database Schema Practice Worksheet',
+    professor: 'Prof. Smith',
+    type: 'DOCX',
+    fileSize: '842 KB',
+    dateAdded: '2026-06-04',
+    downloadUrl: 'https://calibre-ebook.com/downloads/demos/demo.docx'
+  }
+];
+
+// 📡 Endpoint A: Students and Faculty fetch the shared resource repository index
+app.get('/api/resources/list', (req, res) => {
+  res.json({ success: true, resources: classroomResources });
+});
+
+// 🚀 Endpoint B: Faculty uploads/broadcasts a new dynamic resource entry record
+app.post('/api/resources/upload', (req, res) => {
+  const { title, professor, type, downloadUrl } = req.body;
+
+  if (!title || !type || !downloadUrl) {
+    return res.status(400).json({ success: false, message: "Required file resource parameters missing." });
+  }
+
+  // Create formatted metadata parameters out of the transmission payload
+  const newResourceFile = {
+    id: Date.now(),
+    title: title.trim(),
+    professor: professor || 'Faculty Member',
+    type: type.toUpperCase(),
+    fileSize: `${Math.floor(1 + Math.random() * 4)}.${Math.floor(1 + Math.random() * 9)} MB`, // Generated mock size
+    dateAdded: new Date().toISOString().split('T')[0], // Capture current date programmatically
+    downloadUrl: downloadUrl.trim()
+  };
+
+  // Prepend into our global matrix array
+  classroomResources = [newResourceFile, ...classroomResources];
+
+  res.json({ success: true, message: "Document successfully dispatched to the student portals!", resources: classroomResources });
+});
+
+
+// =========================================================================
 // 🔑 1. AUTHENTICATION ENDPOINT (Queries Live MySQL Users Table)
 // =========================================================================
 app.post('/api/auth/login', async (req, res) => {
@@ -28,7 +166,7 @@ app.post('/api/auth/login', async (req, res) => {
     const [rows] = await db.execute('SELECT * FROM users WHERE LOWER(email) = ?', [email.toLowerCase()]);
     
     if (rows.length === 0) {
-      return res.status(44).json({ success: false, message: "User account not found." });
+      return res.status(404).json({ success: false, message: "User account not found." });
     }
 
     const user = rows[0];
@@ -166,7 +304,7 @@ app.post('/api/security/scan', async (req, res) => {
 // =========================================================================
 app.get('/api/library/books', async (req, res) => {
   try {
-    // Grab all books along with the names of students who currently hold them
+    // 🔄 HYBRID SYNC: Pull SQL rows from DB table, merge with our global memory changes
     const query = `
       SELECT b.book_barcode_id, b.title, b.author, b.availability_status, u.name AS borrowed_by
       FROM library_books b
@@ -175,15 +313,19 @@ app.get('/api/library/books', async (req, res) => {
     `;
     const [rows] = await db.execute(query);
     
-    // Format response back into an object keyed by barcode to match frontend map handlers
-    const catalog = {};
+    // Process SQL values into the catalog frame object mapping structure
+    const catalog = { ...dynamicLibraryCatalog };
+    
     rows.forEach(book => {
-      catalog[book.book_barcode_id] = {
-        title: book.title,
-        author: book.author,
-        status: book.availability_status,
-        borrowedBy: book.borrowed_by
-      };
+      // Database values take priority unless overwritten in server RAM
+      if (!catalog[book.book_barcode_id]) {
+        catalog[book.book_barcode_id] = {
+          title: book.title,
+          author: book.author,
+          status: book.availability_status,
+          borrowedBy: book.borrowed_by
+        };
+      }
     });
 
     res.json({ success: true, inventory: catalog });
@@ -193,76 +335,62 @@ app.get('/api/library/books', async (req, res) => {
   }
 });
 
-// =========================================================================
-// 📝 NEW USER REGISTRATION ENDPOINT (Dynamically Writes to DB)
-// =========================================================================
-app.post('/api/auth/register', async (req, res) => {
-  const { name, email, password, role, studentId, section } = req.body;
-
-  try {
-    // 1. Check if email already exists in our database
-    const [existing] = await db.execute('SELECT id FROM users WHERE LOWER(email) = ?', [email.toLowerCase()]);
-    if (existing.length > 0) {
-      return res.status(400).json({ success: false, message: "Email address is already registered." });
-    }
-
-    // 2. Insert into the Master Users Table
-    const [userResult] = await db.execute(
-      'INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
-      [name, email.toLowerCase(), password, role]
-    );
-
-    const newUserId = userResult.insertId;
-
-    // 3. If the role is a student, automatically build their QR profile extension
-    if (role === 'student') {
-      if (!studentId || !section) {
-        return res.status(400).json({ success: false, message: "Student ID and Section Block are required for student accounts." });
-      }
-
-      // Generate a clean, unique cryptographic token fingerprint for their QR code
-      const uniqueToken = `STU-TOKEN-${name.substring(0, 4).toUpperCase()}-${Math.floor(100000 + Math.random() * 900000)}`;
-
-      await db.execute(
-        'INSERT INTO students (user_id, student_id_number, section_block, qr_token_fingerprint, account_status) VALUES (?, ?, ?, ?, "Clear")',
-        [newUserId, studentId, section, uniqueToken]
-      );
-    }
-
-    res.json({ success: true, message: "Account successfully registered to database!" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Database registration transaction failed." });
-  }
-});
-
 app.post('/api/library/checkout', async (req, res) => {
-  const { studentToken, bookId } = req.body;
+  const { studentToken, manualBookTitle } = req.body;
+
+  if (!manualBookTitle || manualBookTitle.trim() === '') {
+    return res.status(400).json({ success: false, message: "Please specify the book title being borrowed." });
+  }
 
   try {
-    // 1. Fetch Student ID
-    const [students] = await db.execute('SELECT id FROM students WHERE qr_token_fingerprint = ?', [studentToken]);
-    if (students.length === 0) return res.status(404).json({ success: false, message: "Student code invalid." });
+    // 1. Fetch Student ID & Name from your real SQL tables using the scanned token pass
+    const [students] = await db.execute(`
+      SELECT s.id, u.name 
+      FROM students s 
+      JOIN users u ON s.user_id = u.id 
+      WHERE s.qr_token_fingerprint = ?
+    `, [studentToken]);
+    
+    if (students.length === 0) return res.status(404).json({ success: false, message: "Scanned student authorization pass token is invalid." });
+    const student = students[0];
 
-    // 2. Fetch Book Status
-    const [books] = await db.execute('SELECT * FROM library_books WHERE book_barcode_id = ?', [bookId]);
-    if (books.length === 0) return res.status(404).json({ success: false, message: "Book barcode tag not recognized." });
+    // 2. Generate a clean random ledger index key for this unique circulation checkout
+    const dynamicTransactionKey = `BK-LOAN-${Math.floor(10000 + Math.random() * 90000)}`;
 
-    const book = books[0];
-    if (book.availability_status === 'Borrowed') {
-      return res.status(400).json({ success: false, message: "This asset is already checked out." });
-    }
+    // 3. Commit data row to memory matrix so it propagates immediately to all student tabs
+    dynamicLibraryCatalog[dynamicTransactionKey] = {
+      title: manualBookTitle.trim(),
+      author: "Circulation Desk Entry",
+      status: 'Borrowed',
+      borrowedBy: student.name
+    };
 
-    // 3. Update book transaction assignment links
-    await db.execute(
-      'UPDATE library_books SET availability_status = "Borrowed", current_borrower_student_id = ? WHERE id = ?',
-      [students[0].id, book.id]
-    );
-
-    res.json({ success: true, message: `Successfully logged asset checkout transaction link inside database!` });
+    res.json({ 
+      success: true, 
+      message: `Successfully checked out "${manualBookTitle}" to student account ${student.name}!`, 
+      inventory: dynamicLibraryCatalog 
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: "Library engine transaction fault." });
+  }
+});
+
+// =========================================================================
+// 🗃️ ADMIN VIEW: FETCH ENTIRE REGISTERED STUDENT DIRECTORY
+// =========================================================================
+app.get('/api/admin/students-list', async (req, res) => {
+  try {
+    const query = `
+      SELECT s.id, s.student_id_number, s.section_block, s.qr_token_fingerprint, s.account_status, u.name 
+      FROM students s
+      JOIN users u ON s.user_id = u.id
+    `;
+    const [rows] = await db.execute(query);
+    res.json({ success: true, list: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Directory data acquisition fault." });
   }
 });
 

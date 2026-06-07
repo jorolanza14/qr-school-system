@@ -1,0 +1,293 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+export default function AdminDashboard() {
+  const navigate = useNavigate();
+  const adminName = localStorage.getItem('userName') || 'System Administrator';
+  
+  // 🧭 Control Navigation Tabs State
+  const [activeTab, setActiveTab] = useState('overview');
+
+  // 👥 Dynamic Mock System Users State
+  const [users, setUsers] = useState([
+    { id: 1, name: 'Josef Anza', email: 'anza.josef@school.edu', role: 'Student', status: 'Clear', registered: '2026-01-10' },
+    { id: 2, name: 'Dr. Alejandro Cruz', email: 'cruz.a@faculty.edu', role: 'Faculty', status: 'Active', registered: '2025-08-22' },
+    { id: 3, name: 'Officer Ronald Perez', email: 'perez.r@security.edu', role: 'Security', status: 'Active', registered: '2026-02-05' },
+    { id: 4, name: 'Clara Santos', email: 'santos.c@library.edu', role: 'Librarian', status: 'Active', registered: '2025-09-12' },
+  ]);
+
+  // 🗓️ Events State Layer
+  const [events, setEvents] = useState([]);
+  const [newEvent, setNewEvent] = useState({ title: '', date: '', time: '', location: '', organizer: 'Admin Office', desc: '' });
+  const [eventFeedback, setEventFeedback] = useState('');
+
+  // 🔄 Synchronization Engine: Fetch and pull current live events list from Node API
+  const fetchLiveEventsList = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/student/events-list');
+      const data = await res.json();
+      if (data.success) {
+        setEvents(data.list);
+      }
+    } catch (err) {
+      console.error("Initial data database acquisition fault:", err);
+    }
+  };
+
+  // Setup live background loop hooks to sync cross-browser edits immediately
+  useEffect(() => {
+    fetchLiveEventsList();
+    
+    // Ticks every 2 seconds so split views remain perfectly balanced
+    const backgroundSyncInterval = setInterval(fetchLiveEventsList, 2000);
+    return () => clearInterval(backgroundSyncInterval);
+  }, []);
+
+  // 🚀 Connect Admin Event Publisher straight to the centralized API endpoint
+  const handlePublishEvent = async (e) => {
+    e.preventDefault();
+    if (!newEvent.title.trim() || !newEvent.date || !newEvent.location.trim()) return;
+
+    try {
+      const response = await fetch('http://localhost:5000/api/admin/add-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newEvent)
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        setEvents(data.list); // Snaps the brand-new return array onto the preview board
+        setNewEvent({ title: '', date: '', time: '', location: '', organizer: 'Admin Office', desc: '' });
+        setEventFeedback('📢 Event broadcasted dynamically across the server network!');
+        setTimeout(() => setEventFeedback(''), 3000);
+      }
+    } catch (err) {
+      console.error("Backend transmission link failure:", err);
+    }
+  };
+
+  // ⚡ Change User Account Standing (Clear vs Hold)
+  const toggleUserStatus = (id) => {
+    setUsers(users.map(u => {
+      if (u.id === id && u.role === 'Student') {
+        const nextStatus = u.status === 'Clear' ? 'Hold Block' : 'Clear';
+        return { ...u, status: nextStatus };
+      }
+      return u;
+    }));
+  };
+
+  return (
+    <div style={styles.container}>
+      {/* 🧭 Top Master Control Navbar */}
+      <nav style={styles.navbar}>
+        <div style={styles.brand}>👑 Root Administrator | <span style={{ color: '#38bdf8' }}>{adminName}</span></div>
+        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+          <span style={styles.systemStatusBadge}>● System Server: Operational</span>
+          <button onClick={() => { localStorage.clear(); navigate('/'); }} style={styles.logoutBtn}>Logout</button>
+        </div>
+      </nav>
+
+      <div style={styles.layoutBody}>
+        {/* 🗺️ Sidebar Master Route Navigation */}
+        <aside style={styles.sidebar}>
+          <div style={styles.menuLabel}>ADMIN PLATFORM NAVIGATION</div>
+          <button onClick={() => setActiveTab('overview')} style={{ ...styles.sidebarLink, ...(activeTab === 'overview' ? styles.activeLink : {}) }}>📊 Analytics Overview</button>
+          <button onClick={() => setActiveTab('users')} style={{ ...styles.sidebarLink, ...(activeTab === 'users' ? styles.activeLink : {}) }}>👥 User Account Control</button>
+          <button onClick={() => setActiveTab('events')} style={{ ...styles.sidebarLink, ...(activeTab === 'events' ? styles.activeLink : {}) }}>📣 Event Broadcaster</button>
+          
+          <div style={{ ...styles.menuLabel, marginTop: '20px' }}>CROSS-PORTAL DIRECT ACCESSS</div>
+          <button onClick={() => navigate('/admin/holds')} style={styles.sidebarLink}>🛡️ Quick Issue Holds</button>
+          <button onClick={() => navigate('/security')} style={styles.sidebarLink}>🚪 Launch Gate Terminal</button>
+          <button onClick={() => navigate('/faculty')} style={styles.sidebarLink}>👨‍🏫 Launch Faculty Suite</button>
+          <button onClick={() => navigate('/student/attendance')} style={styles.sidebarLink}>🎒 Launch Student Hub</button>
+        </aside>
+
+        {/* 🛠️ Dynamic Workspace Panel */}
+        <main style={styles.workspace}>
+          
+          {/* ==========================================
+              TAB 1: ANALYTICS OVERVIEW PANEL
+             ========================================== */}
+          {activeTab === 'overview' && (
+            <div>
+              <h2 style={styles.pageTitle}>Central Cockpit Metrics</h2>
+              <p style={styles.pageSubtitle}>Real-time telemetry from across the registered system database frameworks.</p>
+              
+              <section style={styles.statsGrid}>
+                <div style={styles.statCard}><h3>Active Registered Accounts</h3><p style={{ ...styles.statNum, color: '#38bdf8' }}>{users.length + 124}</p><span>Across 5 system roles</span></div>
+                <div style={styles.statCard}><h3>Total Live Events Bulletin</h3><p style={{ ...styles.statNum, color: '#4ade80' }}>{events.length}</p><span>Active scheduling lines</span></div>
+                <div style={styles.statCard}><h3>Terminal Gate Swipes</h3><p style={{ ...styles.statNum, color: '#f59e0b' }}>1,842</p><span>Synced with Security Index</span></div>
+              </section>
+
+              <div style={{ ...styles.card, height: 'auto', marginTop: '20px' }}>
+                <h3 style={styles.cardHeader}>🛠️ Master System Overview</h3>
+                <p style={{ color: '#94a3b8', fontSize: '14px', lineHeight: '1.6' }}>
+                  Welcome back, Root Admin. This terminal layout grants you unchecked authorization boundaries across your thesis file system tree layers. Use the navigation panel items on the left to review database fields, check client application instances, override security checkpoint blocks, or modify core account credentials dynamically.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* ==========================================
+              TAB 2: USER ACCOUNT CONTROL MANAGEMENT
+             ========================================== */}
+          {activeTab === 'users' && (
+            <div>
+              <h2 style={styles.pageTitle}>User Account Access Control Deck</h2>
+              <p style={styles.pageSubtitle}>Monitor credentials, check registration dates, and override student authorization parameters.</p>
+              
+              <div style={{ ...styles.card, height: 'auto', width: '100%' }}>
+                <h3 style={styles.cardHeader}>📋 System Accounts Registry Index</h3>
+                <table style={styles.table}>
+                  <thead>
+                    <tr style={styles.thRow}>
+                      <th style={styles.th}>Name</th>
+                      <th style={styles.th}>Email Vector</th>
+                      <th style={styles.th}>System Role</th>
+                      <th style={styles.th}>Account Status</th>
+                      <th style={styles.th}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map(user => (
+                      <tr key={user.id} style={styles.tdRow}>
+                        <td style={styles.tdName}>{user.name}</td>
+                        <td style={styles.tdText}>{user.email}</td>
+                        <td style={styles.tdText}><span style={styles.roleBadge}>{user.role}</span></td>
+                        <td style={styles.tdText}>
+                          <span style={{
+                            ...styles.statusTextLabel,
+                            color: user.status === 'Clear' || user.status === 'Active' ? '#4ade80' : '#f87171'
+                          }}>
+                            ● {user.status}
+                          </span>
+                        </td>
+                        <td style={styles.tdText}>
+                          {user.role === 'Student' ? (
+                            <button onClick={() => toggleUserStatus(user.id)} style={{
+                              ...styles.actionBtn,
+                              backgroundColor: user.status === 'Clear' ? '#7f1d1d' : '#16a34a'
+                            }}>
+                              {user.status === 'Clear' ? 'Apply System Hold' : 'Release Profile Hold'}
+                            </button>
+                          ) : <span style={{ color: '#475569', fontSize: '12px' }}>Immutable Role</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ==========================================
+              TAB 3: EVENT BROADCASTER COMPONENT
+             ========================================== */}
+          {activeTab === 'events' && (
+            <div>
+              <h2 style={styles.pageTitle}>Campus Broadcast Controller</h2>
+              <p style={styles.pageSubtitle}>Schedule massive calendar listings and notifications into the Student Portal feed arrays.</p>
+              
+              <div style={styles.dashboardGrid}>
+                <div style={styles.card}>
+                  <h3 style={styles.cardHeader}>📝 Broadcast New Event Notice</h3>
+                  <form onSubmit={handlePublishEvent} style={styles.form}>
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Event Title:</label>
+                      <input type="text" placeholder="e.g., General Assembly" value={newEvent.title} onChange={(e) => setNewEvent({...newEvent, title: e.target.value})} style={styles.input} required />
+                    </div>
+                    <div style={styles.formRow}>
+                      <div style={styles.formGroup}>
+                        <label style={styles.label}>Date:</label>
+                        <input type="date" value={newEvent.date} onChange={(e) => setNewEvent({...newEvent, date: e.target.value})} style={styles.input} required />
+                      </div>
+                      <div style={styles.formGroup}>
+                        <label style={styles.label}>Time Window:</label>
+                        <input type="text" placeholder="9:00 AM - 12:00 PM" value={newEvent.time} onChange={(e) => setNewEvent({...newEvent, time: e.target.value})} style={styles.input} />
+                      </div>
+                    </div>
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Venue Location:</label>
+                      <input type="text" placeholder="Building B IT Lab 3" value={newEvent.location} onChange={(e) => setNewEvent({...newEvent, location: e.target.value})} style={styles.input} required />
+                    </div>
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Description Metadata:</label>
+                      <textarea rows="2" placeholder="Provide guidelines, clothing code regulations, etc..." value={newEvent.desc} onChange={(e) => setNewEvent({...newEvent, desc: e.target.value})} style={styles.textarea} />
+                    </div>
+                    <button type="submit" style={styles.submitBtn}>Publish Live Bulletin Notice</button>
+                  </form>
+                  {eventFeedback && <div style={styles.successAlert}>{eventFeedback}</div>}
+                </div>
+
+                <div style={styles.card}>
+                  <h3 style={styles.cardHeader}>🗓️ Live Broadcast Feed Logs ({events.length})</h3>
+                  <div style={styles.scrollBox}>
+                    {events.map(ev => (
+                      <div key={ev.id || Math.random()} style={styles.eventRowItem}>
+                        <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '4px'}}>
+                          <span style={styles.evTitleText}>{ev.title}</span>
+                          <span style={styles.evOrganizerText}>🏢 {ev.organizer}</span>
+                        </div>
+                        <div style={styles.evMetaText}>📍 {ev.location} | 📅 {ev.date} ({ev.time})</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </main>
+      </div>
+    </div>
+  );
+}
+
+const styles = {
+  container: { minHeight: '100vh', backgroundColor: '#0f172a', fontFamily: 'sans-serif', color: '#f1f5f9', display: 'flex', flexDirection: 'column' },
+  navbar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1e293b', padding: '16px 40px', borderBottom: '1px solid #334155', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.2)' },
+  brand: { fontSize: '16px', fontWeight: 'bold', color: '#fff' },
+  systemStatusBadge: { fontSize: '12px', color: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '4px 12px', borderRadius: '50px', fontWeight: 'bold' },
+  logoutBtn: { backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' },
+  layoutBody: { display: 'flex', flex: '1' },
+  sidebar: { width: '260px', backgroundColor: '#1e293b', borderRight: '1px solid #334155', padding: '30px 16px', display: 'flex', flexDirection: 'column', gap: '6px' },
+  menuLabel: { fontSize: '11px', color: '#64748b', fontWeight: 'bold', letterSpacing: '0.5px', marginBottom: '6px', paddingLeft: '8px' },
+  sidebarLink: { width: '100%', textAlign: 'left', padding: '11px 14px', background: 'none', border: 'none', color: '#94a3b8', fontSize: '14px', fontWeight: '500', cursor: 'pointer', borderRadius: '6px', transition: 'all 0.2s' },
+  activeLink: { backgroundColor: '#0f172a', color: '#38bdf8', fontWeight: 'bold', borderLeft: '3px solid #38bdf8', borderRadius: '0 6px 6px 0' },
+  workspace: { flex: '1', padding: '40px' },
+  pageTitle: { fontSize: '24px', fontWeight: 'bold', color: '#fff', margin: '0 0 6px 0' },
+  pageSubtitle: { color: '#94a3b8', fontSize: '14px', margin: '0' },
+  
+  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '24px' },
+  statCard: { backgroundColor: '#1e293b', padding: '24px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', color: '#94a3b8' },
+  statNum: { fontSize: '32px', fontWeight: 'bold', margin: '8px 0 4px 0' },
+  
+  dashboardGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(440px, 1fr))', gap: '30px', marginTop: '24px' },
+  card: { backgroundColor: '#1e293b', padding: '24px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', height: '480px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)' },
+  cardHeader: { color: '#fff', fontSize: '15px', fontWeight: 'bold', margin: '0 0 16px 0', borderBottom: '1px solid #334155', paddingBottom: '10px' },
+  form: { display: 'flex', flexDirection: 'column', gap: '12px' },
+  formGroup: { display: 'flex', flexDirection: 'column', gap: '4px', flex: '1' },
+  formRow: { display: 'flex', gap: '12px' },
+  label: { color: '#cbd5e1', fontSize: '12px', fontWeight: '600' },
+  input: { padding: '8px 12px', backgroundColor: '#0f172a', color: '#fff', border: '1px solid #334155', borderRadius: '6px', fontSize: '14px', outline: 'none' },
+  textarea: { padding: '8px 12px', backgroundColor: '#0f172a', color: '#fff', border: '1px solid #334155', borderRadius: '6px', fontSize: '14px', outline: 'none', resize: 'none' },
+  submitBtn: { backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '10px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', marginTop: '6px' },
+  successAlert: { marginTop: '10px', padding: '8px', borderRadius: '6px', backgroundColor: 'rgba(22, 163, 74, 0.15)', color: '#4ade80', border: '1px solid #16a34a', fontSize: '12px', textAlign: 'center', fontWeight: 'bold' },
+  scrollBox: { display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', flex: '1' },
+  eventRowItem: { backgroundColor: '#0f172a', border: '1px solid #233147', borderRadius: '8px', padding: '12px' },
+  evTitleText: { color: '#fff', fontSize: '14px', fontWeight: 'bold' },
+  evOrganizerText: { fontSize: '11px', color: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)', padding: '2px 6px', borderRadius: '4px' },
+  evMetaText: { color: '#64748b', fontSize: '12px', marginTop: '4px' },
+
+  table: { width: '100%', borderCollapse: 'collapse', marginTop: '10px', textAlign: 'left' },
+  thRow: { borderBottom: '2px solid #334155' },
+  th: { padding: '12px 16px', color: '#64748b', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' },
+  tdRow: { borderBottom: '1px solid #233147', transition: 'background 0.2s' },
+  tdName: { padding: '14px 16px', color: '#fff', fontSize: '14px', fontWeight: '600' },
+  tdText: { padding: '14px 16px', color: '#cbd5e1', fontSize: '14px' },
+  roleBadge: { backgroundColor: '#334155', color: '#f1f5f9', padding: '3px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '500' },
+  statusTextLabel: { fontSize: '13px', fontWeight: '500' },
+  actionBtn: { border: 'none', color: '#fff', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', transition: 'background 0.2s' }
+};

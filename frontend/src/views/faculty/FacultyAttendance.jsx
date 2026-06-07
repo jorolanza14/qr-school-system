@@ -1,82 +1,148 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react'; // 🔄 Import the dynamic QR code drawing library
 
 export default function FacultyAttendance() {
   const navigate = useNavigate();
-  const [section, setSection] = useState('BSIT-4A');
-  const [sessionToken, setSessionToken] = useState('');
-  const [attendees, setAttendees] = useState([]);
-  const [qrImage, setQrImage] = useState('');
+  const [selectedSection, setSelectedSection] = useState('BSIT-4A');
+  const [isSessionActive, setIsSessionActive] = useState(false);
+  const [currentSessionToken, setCurrentSessionToken] = useState('');
+  const [countdown, setCountdown] = useState(15);
 
-  const startClassSession = async () => {
-    try {
-      const res = await fetch('http://localhost:5000/api/faculty/start-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ section })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setSessionToken(data.sessionToken);
-        // Leverage the global QR generation URL block directly inside an image source element
-        setQrImage(`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${data.sessionToken}`);
-      }
-    } catch (err) {
-      console.error('Failed spinning up sync session context.', err);
-    }
+  // 🔄 Generate a fresh, rolling cryptographic attendance token string
+  const generateNewToken = () => {
+    const randomHex = Math.floor(100000 + Math.random() * 900000);
+    const compactSection = selectedSection.replace(/[^a-zA-Z0-9]/g, '');
+    setCurrentSessionToken(`LEC-${compactSection}-${randomHex}`);
+    setCountdown(15); // Reset clock back to 15 seconds
   };
 
-  // Poll the database register logs every 3 seconds while the check-in window remains open
+  // ⏱️ Handle the active ticking down of the rolling token window
   useEffect(() => {
-    if (!sessionToken) return;
+    let intervalId = null;
 
-    const interval = setInterval(() => {
-      fetch(`http://localhost:5000/api/faculty/session-status/${section}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) setAttendees(data.attendees);
+    if (isSessionActive) {
+      intervalId = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            generateNewToken(); // Clock hit zero, dynamically roll to a new row token
+            return 15;
+          }
+          return prev - 1;
         });
-    }, 3000);
+      }, 1000);
+    } else {
+      clearInterval(intervalId);
+    }
 
-    return () => clearInterval(interval);
-  }, [sessionToken, section]);
+    return () => clearInterval(intervalId);
+  }, [isSessionActive, selectedSection]);
+
+  // 🚀 Initialize the session projection modal
+  const handleStartSession = (e) => {
+    e.preventDefault();
+    generateNewToken();
+    setIsSessionActive(true);
+  };
 
   return (
-    <div style={{ padding: '40px', fontFamily: 'sans-serif', display: 'flex', gap: '50px' }}>
-      <div style={{ maxWidth: '400px' }}>
-        <button onClick={() => navigate('/faculty')} style={{ marginBottom: '20px', padding: '6px 12px' }}>← Main Dashboard</button>
-        <h2>⏱️ Live Lecture Attendance Generator</h2>
-        <p style={{ color: '#64748b' }}>Select your lecture block to project an entrance verification token loop directly onto the class display screen.</p>
-        
-        <label style={{ display: 'block', margin: '15px 0 5px 0', fontWeight: 'bold' }}>Target Section:</label>
-        <select value={section} onChange={(e) => setSection(e.target.value)} style={{ padding: '10px', width: '100%', marginBottom: '15px', borderRadius: '4px' }}>
-          <option value="BSIT-4A">BSIT - 4A</option>
-          <option value="BSIT-4B">BSIT - 4B</option>
-        </select>
-
-        <button onClick={startClassSession} style={{ width: '100%', padding: '12px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>
-          {sessionToken ? '🔄 Rotate Live Session Token' : '⚡ Initialize Session Window'}
+    <div style={styles.container}>
+      <div style={styles.cardLayout}>
+        {/* 🗺️ Redirects back to the Faculty Dashboard */}
+        <button onClick={() => navigate('/faculty')} style={styles.backBtn}>
+          ← Back to Faculty Dashboard
         </button>
+
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <h2 style={styles.title}>⏱️ Live Lecture Attendance Generator</h2>
+          <p style={styles.subtitle}>
+            Select your lecture block to project an entrance verification token loop directly onto the class display screen.
+          </p>
+        </div>
+
+        <form onSubmit={handleStartSession} style={styles.form}>
+          <label style={styles.label}>Target Section:</label>
+          <select 
+            value={selectedSection} 
+            onChange={(e) => setSelectedSection(e.target.value)} 
+            style={styles.selectInput}
+          >
+            <option value="BSIT-4A">BSIT - 4A</option>
+            <option value="BSIT-4B">BSIT - 4B</option>
+            <option value="BSIT-3A">BSIT - 3A</option>
+            <option value="BSIT-3B">BSIT - 3B</option>
+          </select>
+
+          <button type="submit" style={styles.submitBtn}>
+            ⚡ Initialize Session Window
+          </button>
+        </form>
       </div>
 
-      {sessionToken && (
-        <div style={{ flex: 1, display: 'flex', gap: '30px' }}>
-          <div style={{ background: '#fff', padding: '30px', borderRadius: '8px', border: '1px solid #e2e8f0', textAlign: 'center', width: '280px' }}>
-            <h4 style={{ margin: '0 0 15px 0' }}>Classroom Projection View</h4>
-            <img src={qrImage} alt="Live Session QR Grid" style={{ border: '3px solid #0f172a', padding: '5px', borderRadius: '4px' }} />
-            <p style={{ fontFamily: 'monospace', fontSize: '12px', color: '#64748b', marginTop: '10px' }}>{sessionToken}</p>
-          </div>
+      {/* =========================================================================
+          🖥️ THE LIVE PROJECTION MODAL LAYER (Visible when Session is Active)
+         ========================================================================= */}
+      {isSessionActive && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalContent}>
+            <span style={styles.liveBadge}>● LIVE PROJECTION ACTIVE</span>
+            <h2 style={styles.modalTitle}>Section: {selectedSection}</h2>
+            <p style={styles.modalInstructions}>Scan this dynamic QR code or use the token string below via your student portal.</p>
 
-          <div style={{ flex: 1, background: '#f8fafc', padding: '25px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-            <h3 style={{ margin: '0 0 15px 0' }}>📋 Real-Time Present Register ({attendees.length})</h3>
-            {attendees.length === 0 ? <p style={{ color: '#94a3b8', fontStyle: 'italic' }}>Awaiting local student mobile scanning check-ins...</p> : (
-              <ul style={{ paddingLeft: '20px', lineHeight: '1.8', color: '#1e293b', fontWeight: '500' }}>
-                {attendees.map((name, i) => <li key={i} style={{ color: '#16a34a' }}>✔️ {name}</li>)}
-              </ul>
-            )}
+            {/* 🔄 NEW FEATURE: Real-time scannable QR code block linked to the rolling token text value */}
+            <div style={styles.qrDisplayBox}>
+              <QRCodeSVG 
+                value={currentSessionToken}
+                size={200}
+                bgColor={"#ffffff"}
+                fgColor={"#0f172a"}
+                level={"M"}
+                includeMargin={true}
+              />
+            </div>
+
+            {/* Text Token Row Box */}
+            <div style={styles.tokenDisplayBox}>
+              <code style={styles.tokenText}>{currentSessionToken}</code>
+            </div>
+
+            <div style={styles.timerTrack}>
+              Session keys rotating dynamically in: <span style={{ color: '#f59e0b', fontWeight: 'bold' }}>{countdown}s</span>
+            </div>
+
+            <button onClick={() => setIsSessionActive(false)} style={styles.closeBtn}>
+              Terminate Active Session
+            </button>
           </div>
         </div>
       )}
     </div>
   );
 }
+
+const styles = {
+  container: { minHeight: '100vh', backgroundColor: '#0f172a', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px', fontFamily: 'sans-serif' },
+  cardLayout: { background: '#1e293b', padding: '40px', borderRadius: '12px', border: '1px solid #334155', maxWidth: '500px', width: '100%' },
+  backBtn: { background: '#334155', color: '#f1f5f9', border: 'none', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', marginBottom: '24px', fontWeight: 'bold', fontSize: '13px', transition: 'background 0.2s' },
+  title: { color: '#fff', fontSize: '22px', fontWeight: 'bold', margin: '0 0 8px 0' },
+  subtitle: { color: '#94a3b8', fontSize: '14px', lineHeight: '1.5', margin: '0' },
+  form: { display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' },
+  label: { color: '#f1f5f9', fontSize: '15px', fontWeight: '600' },
+  selectInput: { padding: '12px', borderRadius: '6px', backgroundColor: '#0f172a', color: '#fff', border: '1px solid #334155', fontSize: '15px', outline: 'none', cursor: 'pointer' },
+  submitBtn: { padding: '12px', borderRadius: '6px', backgroundColor: '#2563eb', color: '#fff', border: 'none', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', transition: 'background 0.2s', marginTop: '10px' },
+  
+  // Modal Style System Configuration
+  modalOverlay: { position: 'fixed', top: '0', left: '0', right: '0', bottom: '0', backgroundColor: 'rgba(15, 23, 42, 0.96)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: '9999', padding: '20px' },
+  modalContent: { backgroundColor: '#1e293b', border: '2px solid #334155', borderRadius: '16px', padding: '35px', width: '100%', maxWidth: '550px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' },
+  liveBadge: { color: '#ef4444', fontSize: '12px', fontWeight: 'bold', letterSpacing: '1px', display: 'inline-block', marginBottom: '15px', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '4px 12px', borderRadius: '50px' },
+  modalTitle: { color: '#fff', fontSize: '26px', margin: '0 0 6px 0' },
+  modalInstructions: { color: '#94a3b8', fontSize: '14px', marginBottom: '20px' },
+  
+  // New QR block structural alignment style
+  qrDisplayBox: { backgroundColor: '#fff', padding: '15px', borderRadius: '12px', display: 'inline-block', marginBottom: '20px', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' },
+  
+  tokenDisplayBox: { backgroundColor: '#0f172a', padding: '16px', borderRadius: '8px', border: '1px solid #334155', marginBottom: '15px' },
+  tokenText: { color: '#38bdf8', fontSize: '20px', fontWeight: 'bold', letterSpacing: '1px', fontFamily: 'monospace' },
+  timerTrack: { color: '#94a3b8', fontSize: '14px', marginBottom: '25px' },
+  closeBtn: { background: '#ef4444', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '15px', width: '100%' }
+};

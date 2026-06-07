@@ -25,9 +25,9 @@ export default function Login() {
         localStorage.setItem('userName', data.user.name);
         localStorage.setItem('userId', data.user.id); // Stored to pull student dynamic data later
 
-        // 🗺️ Redirects perfectly matching your App.jsx routing paths
-        if (data.user.role === 'admin') navigate('/admin/holds');
-        else if (data.user.role === 'faculty') navigate('/faculty/attendance');
+        // 🗺️ Redirects perfectly matching your updated App.jsx routing paths
+        if (data.user.role === 'admin') navigate('/admin');
+        else if (data.user.role === 'faculty') navigate('/faculty');
         else if (data.user.role === 'library') navigate('/library');
         else if (data.user.role === 'security') navigate('/security');
         else if (data.user.role === 'student') navigate('/student/attendance');

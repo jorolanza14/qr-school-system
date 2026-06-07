@@ -1,21 +1,101 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import StudentNavbar from './StudentNavbar';
 
 export default function StudentEvents() {
+  const [events, setEvents] = useState([]);
+
+  // 🔄 Synchronization Engine: Real-Time Network Polling Sync Link
+  useEffect(() => {
+    const fetchLiveEventsFromServerDatabase = async () => {
+      try {
+        const res = await fetch('http://localhost:5000/api/student/events-list');
+        const data = await res.json();
+        if (data.success) {
+          setEvents(data.list);
+        }
+      } catch (error) {
+        console.error("Network communication failure fetching synchronized system events matrix:", error);
+      }
+    };
+
+    // Pull immediately on initial component mount wrapper
+    fetchLiveEventsFromServerDatabase();
+
+    // ⏱️ Auto-sync tick: Polls the server every 2 seconds for hands-free live updates cross-browser
+    const liveServerPollInterval = setInterval(fetchLiveEventsFromServerDatabase, 2000);
+
+    return () => clearInterval(liveServerPollInterval);
+  }, []);
+
   return (
-    <div>
+    <div style={styles.container}>
+      {/* Pinned Shared Navigation Bar */}
       <StudentNavbar />
-      <div style={{ padding: '40px', fontFamily: 'sans-serif', maxWidth: '1200px', margin: '0 auto' }}>
-        <h2>📅 Campus Events & Seminars</h2>
-        <p style={{ color: '#64748b' }}>Stay updated on mandatory university activities requiring automated QR code check-ins.</p>
+      
+      <div style={styles.contentWrapper}>
+        <h2 style={styles.mainTitle}>📅 Campus Events & Seminars</h2>
+        <p style={styles.mainSubtitle}>
+          Stay updated on mandatory university activities requiring automated QR code check-ins.
+        </p>
         
-        <div style={{ marginTop: '25px', padding: '25px', background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', maxWidth: '600px' }}>
-          <span style={{ background: '#fef3c7', color: '#d97706', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>UPCOMING</span>
-          <h3 style={{ margin: '10px 0 5px 0', color: '#0f172a' }}>College of IT Innovation Summit 2026</h3>
-          <p style={{ margin: '0 0 15px 0', fontSize: '14px', color: '#64748b' }}>Location: University Gymnasium | Time: 9:00 AM</p>
-          <p style={{ fontSize: '14px', color: '#334155', lineHeight: '1.5' }}>Ensure you have your <strong>Gate QR Code</strong> ready on your mobile device screen at the entrance check-point for automatic credit tracking.</p>
+        <div style={styles.feedWrapper}>
+          {events.length === 0 ? (
+            <div style={styles.emptyNotice}>No upcoming campus events scheduled at this time.</div>
+          ) : (
+            events.map((event) => (
+              <div key={event.id || Math.random()} style={styles.eventCard}>
+                <span style={styles.badge}>UPCOMING</span>
+                <h3 style={styles.eventTitle}>{event.title}</h3>
+                
+                <div style={styles.metaRow}>
+                  <span style={styles.metaItem}>📍 Location: <strong>{event.location}</strong></span>
+                  <span style={styles.metaItem}> | 📅 Date: <strong>{event.date}</strong></span>
+                  <span style={styles.metaItem}> | ⏱️ Time: <strong>{event.time}</strong></span>
+                </div>
+                
+                <p style={styles.eventDesc}>
+                  {event.desc || 'No additional descriptive text provided for this calendar entry.'}
+                </p>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>
   );
 }
+
+const styles = {
+  container: { minHeight: '100vh', backgroundColor: '#0f172a', color: '#f1f5f9', fontFamily: 'sans-serif' },
+  
+  // 🔄 UPDATED: Added Flexbox rules to position headers and components in the center
+  contentWrapper: { 
+    padding: '40px', 
+    maxWidth: '1200px', 
+    margin: '0 auto',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center'
+  },
+  
+  mainTitle: { fontSize: '24px', fontWeight: 'bold', color: '#fff', margin: '0 0 6px 0', textAlign: 'center' },
+  mainSubtitle: { color: '#94a3b8', fontSize: '14px', margin: '0 0 30px 0', textAlign: 'center' },
+  
+  // 🔄 UPDATED: Forces the individual child map cards to follow full alignment constraints symmetrically
+  feedWrapper: { 
+    display: 'flex', 
+    flexDirection: 'column', 
+    gap: '20px',
+    width: '100%',
+    alignItems: 'center'
+  },
+  
+  // 🔄 UPDATED: Adjusted width constraints to match clean structural padding
+  eventCard: { padding: '25px', background: '#1e293b', borderRadius: '12px', border: '1px solid #334155', width: '100%', maxWidth: '750px', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' },
+  badge: { background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #f59e0b', letterSpacing: '0.5px', display: 'inline-block' },
+  eventTitle: { margin: '15px 0 6px 0', color: '#fff', fontSize: '18px', fontWeight: 'bold' },
+  metaRow: { margin: '0 0 15px 0', fontSize: '13px', color: '#94a3b8', display: 'flex', flexWrap: 'wrap', gap: '4px' },
+  metaItem: { color: '#94a3b8' },
+  eventDesc: { fontSize: '14px', color: '#cbd5e1', lineHeight: '1.6', margin: '0' },
+  emptyNotice: { color: '#64748b', fontStyle: 'italic', padding: '20px', backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', textAlign: 'center', width: '100%', maxWidth: '750px' }
+};

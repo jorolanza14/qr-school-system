@@ -1,39 +1,80 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 
 export default function LibrarianIndex() {
-  const [studentToken, setStudentToken] = useState('');
-  const [bookToken, setBookToken] = useState('');
-  const [logMessage, setLogMessage] = useState('');
+  const navigate = useNavigate();
+  const librarianName = localStorage.getItem('userName') || 'Campus Librarian';
+  
+  const [metrics, setMetrics] = useState({ totalCatalog: 0, checkedOut: 0 });
+  const [scannedStudent, setScannedStudent] = useState('Awaiting Card Scan...');
+  const [manualBookTitle, setManualBookTitle] = useState(''); // 🔄 Text input state layer
+  const [feedback, setFeedback] = useState({ msg: '', type: '' });
+  const [isScannerActive, setIsScannerActive] = useState(false);
   const scannerRef = useRef(null);
 
-  useEffect(() => {
-    const scanner = new Html5QrcodeScanner('library-scanner', {
-      fps: 10,
-      qrbox: { width: 220, height: 220 }
-    });
-
-    scanner.render((decodedText) => {
-      // Logic split: Detect if scanned code is a student identity token or a asset text token
-      if (decodedText.startsWith('STU-')) {
-        setStudentToken(decodedText);
-      } else if (decodedText.startsWith('BOOK-')) {
-        setBookToken(decodedText);
-      } else {
-        setLogMessage('Error: Unknown barcode configuration.');
+  // Sync current totals from backend memory
+  const syncDeskMetrics = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/library/books');
+      const data = await res.json();
+      if (data.success) {
+        const catalog = data.inventory;
+        const total = Object.keys(catalog).length;
+        const borrowed = Object.values(catalog).filter(b => b.status === 'Borrowed').length;
+        setMetrics({ totalCatalog: total, checkedOut: borrowed });
       }
-    }, () => {});
+    } catch (err) {
+      console.error("Metrics sync error:", err);
+    }
+  };
 
-    scannerRef.current = scanner;
+  useEffect(() => {
+    syncDeskMetrics();
     return () => {
-      if (scannerRef.current) scannerRef.current.clear().catch(err => console.log(err));
+      if (scannerRef.current) scannerRef.current.clear().catch(e => console.log(e));
     };
   }, []);
 
-  const handleCheckout = async () => {
-    if (!studentToken || !bookToken) {
-      setLogMessage('Error: Please populate both student credentials and asset barcode IDs.');
+  // Initialize camera lens
+  const startLibrarianLens = () => {
+    setIsScannerActive(true);
+    setFeedback({ msg: '', type: '' });
+
+    setTimeout(() => {
+      const scanner = new Html5QrcodeScanner(
+        "librarianDeskViewfinderFeed",
+        { fps: 12, qrbox: { width: 220, height: 220 }, aspectRatio: 1.0 },
+        false
+      );
+      
+      scanner.render((text) => {
+        // Enforce student card validation criteria rule
+        if (text.startsWith('STU-')) {
+          setScannedStudent(text);
+          setFeedback({ msg: '🎯 Student Pass Token Captured!', type: 'success' });
+        } else {
+          setFeedback({ msg: '⚠️ Please scan a valid student portal QR code pass.', type: 'error' });
+        }
+      }, (err) => {});
+      
+      scannerRef.current = scanner;
+    }, 150);
+  };
+
+  const stopLibrarianLens = () => {
+    if (scannerRef.current) {
+      scannerRef.current.clear().then(() => {
+        scannerRef.current = null;
+        setIsScannerActive(false);
+      }).catch(() => setIsScannerActive(false));
+    }
+  };
+
+  // Authorize checkout via newly streamlined server schema endpoint parameters
+  const handleAuthorizeTransaction = async () => {
+    if (scannedStudent.startsWith('Awaiting') || !manualBookTitle.trim()) {
+      setFeedback({ msg: '❌ Missing details: Provide both scanned student token and book title name.', type: 'error' });
       return;
     }
 
@@ -41,54 +82,158 @@ export default function LibrarianIndex() {
       const response = await fetch('http://localhost:5000/api/library/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentToken: studentToken, bookId: bookToken })
+        body: JSON.stringify({
+          studentToken: scannedStudent,
+          manualBookTitle: manualBookTitle // Sends text title cleanly
+        })
       });
       const data = await response.json();
-      
-      if (data.success) {
-        setLogMessage(data.message);
-        // Clear transaction input values
-        setStudentToken('');
-        setBookToken('');
+
+      if (response.ok) {
+        setFeedback({ msg: `🎉 Success: ${data.message}`, type: 'success' });
+        setManualBookTitle('');
+        setScannedStudent('Awaiting Card Scan...');
+        syncDeskMetrics();
+        stopLibrarianLens();
       } else {
-        setLogMessage(`Transaction Rejected: ${data.message}`);
+        setFeedback({ msg: `❌ Rejected: ${data.message}`, type: 'error' });
       }
     } catch (err) {
-      setLogMessage('Backend server connectivity failure.');
+      setFeedback({ msg: '💥 Server synchronization anomaly.', type: 'error' });
     }
   };
 
   return (
-    <div style={{ padding: '30px', fontFamily: 'sans-serif', display: 'flex', gap: '40px' }}>
-      <div style={{ width: '400px' }}>
-        <h1>📖 Library Desk Console</h1>
-        <nav style={{ margin: '15px 0', display: 'flex', gap: '15px' }}>
-          <Link to="/library/inventory" style={{ fontWeight: 'bold', color: '#2563eb' }}>View Asset Logs</Link> | 
-          <Link to="/library/resources" style={{ color: '#64748b' }}>Digital Database</Link> |
-          <Link to="/" style={{ color: '#dc2626' }}>Logout</Link>
-        </nav>
+    <div style={styles.container}>
+      <nav style={styles.navbar}>
+        <div style={styles.brand}>📚 Library Desk Console | <span style={{ color: '#38bdf8' }}>{librarianName}</span></div>
+        <div style={styles.navLinks}>
+          <button onClick={() => navigate('/library')} style={{...styles.navBtn, ...styles.activeBtn}}>View Asset Logs</button>
+          <button onClick={() => navigate('/library/inventory')} style={styles.navBtn}>Digital Database</button>
+          <button onClick={() => { localStorage.clear(); navigate('/'); }} style={styles.logoutBtn}>Logout</button>
+        </div>
+      </nav>
 
-        <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '20px' }}>
-          <h3>Transaction Inputs</h3>
-          <p style={{ fontSize: '14px' }}><strong>Scanned Student Code:</strong> {studentToken ? <span style={{color:'green'}}>{studentToken}</span> : 'Awaiting Card Scan...'}</p>
-          <p style={{ fontSize: '14px' }}><strong>Scanned Asset Barcode:</strong> {bookToken ? <span style={{color:'blue'}}>{bookToken}</span> : 'Awaiting Sticker Scan...'}</p>
-          
-          <button onClick={handleCheckout} style={{ width: '100%', padding: '12px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', marginTop: '10px' }}>
-            Confirm Asset Checkout Link
-          </button>
+      <div style={styles.contentWrapper}>
+        <div style={{ marginBottom: '30px' }}>
+          <h2 style={styles.pageTitle}>Operational Control Desk</h2>
+          <p style={styles.pageSubtitle}>Process active book checkouts using real-time user validation fields.</p>
         </div>
 
-        {logMessage && (
-          <div style={{ marginTop: '15px', padding: '15px', background: '#eff6ff', color: '#1e40af', borderRadius: '6px', fontWeight: 'bold', fontSize: '14px' }}>
-            {logMessage}
+        <section style={styles.metricsRow}>
+          <div style={styles.metricCard}>
+            <span style={styles.metricLabel}>TOTAL ACTIVE ENTRIES</span>
+            <div style={styles.metricNum}>{metrics.totalCatalog} Books</div>
           </div>
-        )}
-      </div>
+          <div style={styles.metricCard}>
+            <span style={styles.metricLabel}>CURRENT ISSUED LOANS</span>
+            <div style={{...styles.metricNum, color: '#f59e0b'}}>{metrics.checkedOut} Assets</div>
+          </div>
+        </section>
 
-      <div style={{ flex: 1, maxWidth: '400px' }}>
-        <h3 style={{ margin: '0 0 10px 0' }}>📷 Library Service Lens</h3>
-        <div id="library-scanner" style={{ background: '#fff', borderRadius: '8px', overflow: 'hidden' }}></div>
+        <div style={styles.workspaceGrid}>
+          
+          {/* Card Left: Input Fields Container Workspace */}
+          <div style={styles.card}>
+            <h3 style={styles.cardHeader}>📝 Checkout Details</h3>
+            <p style={styles.cardSubtitle}>Scan the student's card pass using the webcam lens and type the book asset title manually below.</p>
+            
+            <div style={styles.inputLogBox}>
+              <div style={styles.logGroup}>
+                <span style={styles.logLabel}>SCANNED STUDENT PASSPORT CODE:</span>
+                <div style={{ ...styles.logValue, color: scannedStudent.startsWith('STU') ? '#4ade80' : '#64748b' }}>{scannedStudent}</div>
+              </div>
+              
+              <div style={styles.logGroup}>
+                <label style={{...styles.logLabel, marginBottom: '6px', display: 'block'}}>ENTER BOOK TITLE NAME manually:</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g., Full-Stack Software Architecture" 
+                  value={manualBookTitle} 
+                  onChange={e => setManualBookTitle(e.target.value)}
+                  style={styles.formInput}
+                />
+              </div>
+            </div>
+
+            <button type="button" onClick={handleAuthorizeTransaction} style={styles.actionBtn}>
+              Confirm Asset Checkout Link
+            </button>
+            
+            <button type="button" onClick={() => { setScannedStudent('Awaiting Card Scan...'); setManualBookTitle(''); }} style={styles.resetBtn}>
+              Reset Workspace Fields
+            </button>
+
+            {feedback.msg && (
+              <div style={{
+                ...styles.alertBanner,
+                backgroundColor: feedback.type === 'success' ? 'rgba(22, 163, 74, 0.15)' : 'rgba(220, 38, 38, 0.15)',
+                color: feedback.type === 'success' ? '#4ade80' : '#f87171',
+                border: feedback.type === 'success' ? '1px solid #16a34a' : '1px solid #dc2626'
+              }}>{feedback.msg}</div>
+            )}
+          </div>
+
+          {/* Card Right: Live Camera Viewport Box */}
+          <div style={styles.card}>
+            <h3 style={styles.cardHeader}>📷 Library Service Lens Scanner</h3>
+            <p style={styles.cardSubtitle}>Position the student portal identification screen code squarely inside the tracking box area loop.</p>
+            
+            <div style={styles.cameraViewport}>
+              {!isScannerActive ? (
+                <div style={styles.placeholderBox}>
+                  <div style={{ fontSize: '40px' }}>📹</div>
+                  <button type="button" onClick={startLibrarianLens} style={styles.launchBtn}>
+                    Launch Student Card Reader
+                  </button>
+                </div>
+              ) : (
+                <div style={styles.streamWrapper}>
+                  <div id="librarianDeskViewfinderFeed" style={{ width: '100%' }} />
+                  <button type="button" onClick={stopLibrarianLens} style={styles.killBtn}>
+                    Shut Off Webcam Stream Hardware
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+        </div>
       </div>
     </div>
   );
 }
+
+const styles = {
+  container: { minHeight: '100vh', backgroundColor: '#0f172a', color: '#f1f5f9', fontFamily: 'sans-serif' },
+  navbar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1e293b', padding: '16px 40px', borderBottom: '1px solid #334155', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' },
+  brand: { fontSize: '16px', fontWeight: 'bold', color: '#fff' },
+  navLinks: { display: 'flex', gap: '10px', alignItems: 'center' },
+  navBtn: { background: 'none', border: 'none', color: '#94a3b8', fontSize: '14px', fontWeight: '600', cursor: 'pointer', padding: '6px 12px', borderRadius: '4px' },
+  activeBtn: { backgroundColor: '#0f172a', color: '#38bdf8' },
+  logoutBtn: { backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px', marginLeft: '10px' },
+  contentWrapper: { maxWidth: '1100px', margin: '0 auto', padding: '40px 20px' },
+  pageTitle: { fontSize: '24px', fontWeight: 'bold', color: '#fff', margin: '0 0 6px 0' },
+  pageSubtitle: { color: '#94a3b8', fontSize: '14px', margin: '0' },
+  metricsRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', margin: '25px 0' },
+  metricCard: { backgroundColor: '#1e293b', padding: '16px 20px', borderRadius: '10px', border: '1px solid #334155' },
+  metricLabel: { fontSize: '10px', color: '#64748b', fontWeight: 'bold', letterSpacing: '0.5px' },
+  metricNum: { fontSize: '22px', fontWeight: 'bold', color: '#38bdf8', marginTop: '6px' },
+  workspaceGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '30px' },
+  card: { backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '26px', display: 'flex', flexDirection: 'column', height: '440px', boxSizing: 'border-box' },
+  cardHeader: { color: '#fff', fontSize: '16px', fontWeight: 'bold', margin: '0' },
+  cardSubtitle: { color: '#94a3b8', fontSize: '13px', margin: '6px 0 20px 0', lineHeight: '1.4' },
+  inputLogBox: { display: 'flex', flexDirection: 'column', gap: '14px', backgroundColor: '#0f172a', padding: '16px', borderRadius: '8px', border: '1px solid #233147', marginBottom: '16px' },
+  logGroup: { display: 'flex', flexDirection: 'column', gap: '4px' },
+  logLabel: { fontSize: '10px', color: '#64748b', fontWeight: 'bold' },
+  logValue: { fontSize: '14px', fontFamily: 'monospace', fontWeight: 'bold' },
+  formInput: { width: '100%', boxSizing: 'border-box', padding: '10px 12px', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#fff', fontSize: '14px', outline: 'none' },
+  actionBtn: { backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', marginBottom: '10px' },
+  resetBtn: { backgroundColor: 'transparent', color: '#64748b', border: '1px solid #334155', padding: '10px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' },
+  alertBanner: { padding: '10px', borderRadius: '6px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold', marginTop: '12px' },
+  cameraViewport: { backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px', flex: '1', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '10px', overflow: 'hidden' },
+  placeholderBox: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', marginTop: '50px' },
+  launchBtn: { backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' },
+  streamWrapper: { width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' },
+  killBtn: { backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px', width: '100%', marginTop: '10px' }
+};
