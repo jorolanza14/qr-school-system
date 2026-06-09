@@ -1,41 +1,59 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { Html5QrcodeScanner } from 'html5-qrcode'; // 🔄 Import the automatic camera decoder engine
+import { Html5QrcodeScanner } from 'html5-qrcode'; 
 import StudentNavbar from './StudentNavbar'; 
 
 export default function StudentAttendance() {
   const navigate = useNavigate();
-  const studentName = localStorage.getItem('userName') || 'Josef Anza';
+  
+  // 👥 Extract session markers out of local storage layers
+  const userId = localStorage.getItem('userId');
+  const studentName = localStorage.getItem('userName') || 'Student Profile';
+  
   const [manualToken, setManualToken] = useState('');
   const [feedback, setFeedback] = useState({ message: '', type: '' });
-  const [studentStats, setStudentStats] = useState({ attendanceRate: 95, gateStatus: 'Clear', activeLoans: 0 });
+  
+  // 🔄 Combined State layer to store live data fetched from your backend endpoint
+  const [studentStats, setStudentStats] = useState({ 
+    attendanceRate: 95, 
+    gateStatus: 'Clear', 
+    activeLoans: 0,
+    qrToken: 'Awaiting dynamic calculation...' // 🎯 Dynamic variable
+  });
+  
   const [isStreaming, setIsStreaming] = useState(false);
-  const scannerRef = useRef(null); // Holds the active scanner hardware loop reference
+  const scannerRef = useRef(null); 
 
-  const studentQrValue = "STU-TOKEN-ENZO-789456";
-
-  // 🔄 Pulling live account status features straight from your centralized DB rows
+  // 🔄 Synchronization Loop: Query user table profiles based on active userId session index
   useEffect(() => {
+    if (!userId) {
+      console.error("No active session key recognized. Redirecting to access gateway...");
+      navigate('/login');
+      return;
+    }
+
     const syncStudentStatus = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/admin/students-list');
+        // 📡 Hit your secure student profile endpoint passing the active userId parameter
+        const res = await fetch(`http://localhost:5000/api/student/qr/${userId}`);
         const data = await res.json();
+        
         if (data.success) {
-          const myProfile = data.list.find(s => s.name.toLowerCase().includes('anza') || s.name === studentName);
-          if (myProfile) {
-            setStudentStats(prev => ({
-              ...prev,
-              gateStatus: myProfile.account_status
-            }));
-          }
+          setStudentStats({
+            attendanceRate: 95, // Keeps your placeholder baseline evaluation metric percentage
+            gateStatus: data.status, // Clears 'Clear' vs 'Hold Block' dynamically via database rows
+            activeLoans: 0,
+            qrToken: data.studentId ? `STU-${data.studentId.replace(/[^a-zA-Z0-9]/g, '')}` : 'STU-PENDING'
+          });
         }
       } catch (err) {
         console.error("Failed fetching live student validation bounds:", err);
       }
     };
+    
     syncStudentStatus();
-  }, [studentName]);
+  }, [userId, navigate]);
 
   // 📸 Turn on and mount the HTML5 QR Parser inside the student viewfinder container
   const startClassroomScanner = () => {
@@ -44,13 +62,13 @@ export default function StudentAttendance() {
 
     setTimeout(() => {
       const scanner = new Html5QrcodeScanner(
-        "studentClassroomLensFeed", // Target Div ID inside return block below
+        "studentClassroomLensFeed", 
         { 
           fps: 10, 
           qrbox: { width: 220, height: 220 },
           aspectRatio: 1.0
         },
-        /* verbose= */ false
+        false
       );
 
       scanner.render(onClassroomScanSuccess, onClassroomScanFailure);
@@ -73,13 +91,12 @@ export default function StudentAttendance() {
 
   // 🎯 AUTOMATIC CAPTURE SUCCESS HANDLER: Fires instantly when camera detects professor's QR code
   const onClassroomScanSuccess = (decodedText) => {
-    // Look at what text string was extracted from the camera pixels
     if (decodedText.startsWith('LEC-')) {
       setFeedback({ 
         message: `🎯 Automatically Checked-In! Verified Token: ${decodedText}`, 
         type: 'success' 
       });
-      stopClassroomScanner(); // Shut off the camera automatically upon successful entry match
+      stopClassroomScanner(); 
     } else {
       setFeedback({ 
         message: `❌ Mismatched QR Code format. Please capture the rolling lecture code.`, 
@@ -88,9 +105,7 @@ export default function StudentAttendance() {
     }
   };
 
-  const onClassroomScanFailure = (error) => {
-    // Silenced to prevent terminal layout noise during real-time tracking loops
-  };
+  const onClassroomScanFailure = (error) => {};
 
   // ⌨️ Handle Manual Input Form validation as a fail-safe fallback alternative path
   const handleManualSubmit = (e) => {
@@ -105,7 +120,6 @@ export default function StudentAttendance() {
     }
   };
 
-  // Clear hardware threads if user switches tabs via the shared StudentNavbar links
   useEffect(() => {
     return () => {
       if (scannerRef.current) {
@@ -143,14 +157,15 @@ export default function StudentAttendance() {
         {/* 🛠️ Dual-Core Functional Workspace Grid */}
         <div style={styles.workspaceGrid}>
           
-          {/* Card Left: Campus Access QR Key */}
+          {/* Card Left: Campus Access QR Key Component */}
           <div style={styles.card}>
             <h2 style={styles.cardTitle}>🚪 Campus Access Key</h2>
             <p style={styles.cardSubtitle}>Present this digital token at the primary terminal gate scanner to clear checkpoint entries.</p>
             <div style={styles.qrContainer}>
-              <QRCodeSVG value={studentQrValue} size={160} bgColor={"#ffffff"} fgColor={"#0f172a"} level={"L"} />
+              {/* 🔄 FIXED: QRCode SVG value reads dynamically from backend tracking parameters state */}
+              <QRCodeSVG value={studentStats.qrToken} size={160} bgColor={"#ffffff"} fgColor={"#0f172a"} level={"L"} />
             </div>
-            <p style={styles.tokenLabel}>Token Fingerprint: <code style={styles.code}>{studentQrValue}</code></p>
+            <p style={styles.tokenLabel}>Token Fingerprint: <code style={styles.code}>{studentStats.qrToken}</code></p>
           </div>
 
           {/* Card Right: Classroom Attendance Verification Terminal */}
@@ -158,7 +173,6 @@ export default function StudentAttendance() {
             <h2 style={styles.cardTitle}>📸 Classroom Check-In Lens</h2>
             <p style={styles.cardSubtitle}>Scan the rolling 15s sequence code on the projector screen or submit it manually below.</p>
             
-            {/* 🔄 FIXED: Swaps from placeholder elements to an active computer-vision camera viewport reader */}
             <div style={styles.cameraFrame}>
               {!isStreaming ? (
                 <div style={styles.placeholderBox}>
@@ -177,7 +191,6 @@ export default function StudentAttendance() {
               )}
             </div>
 
-            {/* ⌨️ Manual Token Fail-Safe Form Component */}
             <form onSubmit={handleManualSubmit} style={styles.manualForm}>
               <label style={styles.label}>Or Input Rolling Code Manually:</label>
               <div style={styles.inputGroup}>
@@ -223,15 +236,12 @@ const styles = {
   qrContainer: { backgroundColor: '#fff', padding: '20px', borderRadius: '12px', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '0 auto 20px auto', width: '200px', height: '200px' },
   tokenLabel: { textAlign: 'center', color: '#94a3b8', fontSize: '14px', margin: '0' },
   code: { fontFamily: 'monospace', color: '#38bdf8', fontSize: '14px', backgroundColor: '#0f172a', padding: '2px 6px', borderRadius: '4px' },
-  
-  // Adjusted viewport alignment styles for native tracking bounds configuration compatibility
   cameraFrame: { backgroundColor: '#0f172a', borderRadius: '8px', border: '1px solid #334155', height: 'auto', minHeight: '220px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '12px', marginBottom: '20px', overflow: 'hidden', padding: '10px' },
   placeholderBox: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' },
   cameraIcon: { fontSize: '36px' },
   cameraBtn: { backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold', transition: 'background 0.2s' },
   streamWrapper: { width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' },
   closeLensBtn: { backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px', width: '100%', marginTop: '10px' },
-  
   manualForm: { display: 'flex', flexDirection: 'column', gap: '8px' },
   label: { color: '#cbd5e1', fontSize: '14px', fontWeight: '600' },
   inputGroup: { display: 'flex', gap: '10px' },

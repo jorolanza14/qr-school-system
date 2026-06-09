@@ -156,13 +156,14 @@ app.post('/api/resources/upload', (req, res) => {
 
 
 // =========================================================================
-// 🔑 1. AUTHENTICATION ENDPOINT (Queries Live MySQL Users Table)
+// 🔑 1. AUTHENTICATION ENDPOINTS (Login & Registration Ecosystem)
 // =========================================================================
+
+// 🔐 PATHWAY A: User Login Authorization Check
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // Query the users table securely using placeholders to prevent SQL injection
     const [rows] = await db.execute('SELECT * FROM users WHERE LOWER(email) = ?', [email.toLowerCase()]);
     
     if (rows.length === 0) {
@@ -171,7 +172,6 @@ app.post('/api/auth/login', async (req, res) => {
 
     const user = rows[0];
 
-    // Password verification against database entry
     if (user.password_hash !== password) {
       return res.status(401).json({ success: false, message: "Incorrect password selection." });
     }
@@ -190,6 +190,56 @@ app.post('/api/auth/login', async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server authentication error." });
   }
 });
+
+// 📝 PATHWAY B: Dynamic User Provisioning and Seeding Setup
+app.post('/api/auth/register', async (req, res) => {
+  const { name, email, password, role, studentId, section } = req.body;
+
+  if (!name || !email || !password || !role) {
+    return res.status(400).json({ success: false, message: "Missing required profile registration parameters." });
+  }
+
+  try {
+    // Check if the user email coordinates are already occupied in the table schema
+    const [existingUsers] = await db.execute('SELECT id FROM users WHERE LOWER(email) = ?', [email.toLowerCase()]);
+    if (existingUsers.length > 0) {
+      return res.status(400).json({ success: false, message: "This email address is already registered." });
+    }
+
+    // Insert credentials directly into the primary relational users matrix table row
+    const [userResult] = await db.execute(
+      'INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
+      [name.trim(), email.toLowerCase().trim(), password, role]
+    );
+
+    const newUserId = userResult.insertId;
+
+    // Separate logic track branch specifically handling student profiles configuration
+    if (role === 'student') {
+      if (!studentId || !section) {
+        return res.status(400).json({ success: false, message: "Student accounts require an ID code and Section Block configuration." });
+      }
+
+      // Generate a clean cryptographic token profile signature value
+      const cleanStudentToken = `STU-${studentId.trim().replace(/[^a-zA-Z0-9]/g, '')}`;
+
+      await db.execute(
+        'INSERT INTO students (user_id, student_id_number, section_block, qr_token_fingerprint, account_status) VALUES (?, ?, ?, ?, ?)',
+        [newUserId, studentId.trim(), section.trim().toUpperCase(), cleanStudentToken, 'Clear']
+      );
+    }
+
+    res.status(201).json({ 
+      success: true, 
+      message: `Account successfully provisioned for ${name}! Redirecting to console workspace...` 
+    });
+
+  } catch (err) {
+    console.error("Database registration insertion anomaly failure:", err);
+    res.status(500).json({ success: false, message: "Internal server repository registration fault." });
+  }
+});
+
 
 // =========================================================================
 // 📱 2. SECURE STUDENT QR CARD ENDPOINT (Joins Users & Students Tables)
@@ -257,7 +307,6 @@ app.post('/api/security/scan', async (req, res) => {
   const { qrToken } = req.body;
 
   try {
-    // Look up the student and grab their corresponding table user name reference
     const query = `
       SELECT s.id, s.student_id_number, s.account_status, u.name 
       FROM students s
@@ -304,7 +353,6 @@ app.post('/api/security/scan', async (req, res) => {
 // =========================================================================
 app.get('/api/library/books', async (req, res) => {
   try {
-    // 🔄 HYBRID SYNC: Pull SQL rows from DB table, merge with our global memory changes
     const query = `
       SELECT b.book_barcode_id, b.title, b.author, b.availability_status, u.name AS borrowed_by
       FROM library_books b
@@ -313,11 +361,9 @@ app.get('/api/library/books', async (req, res) => {
     `;
     const [rows] = await db.execute(query);
     
-    // Process SQL values into the catalog frame object mapping structure
     const catalog = { ...dynamicLibraryCatalog };
     
     rows.forEach(book => {
-      // Database values take priority unless overwritten in server RAM
       if (!catalog[book.book_barcode_id]) {
         catalog[book.book_barcode_id] = {
           title: book.title,
@@ -343,7 +389,6 @@ app.post('/api/library/checkout', async (req, res) => {
   }
 
   try {
-    // 1. Fetch Student ID & Name from your real SQL tables using the scanned token pass
     const [students] = await db.execute(`
       SELECT s.id, u.name 
       FROM students s 
@@ -354,10 +399,8 @@ app.post('/api/library/checkout', async (req, res) => {
     if (students.length === 0) return res.status(404).json({ success: false, message: "Scanned student authorization pass token is invalid." });
     const student = students[0];
 
-    // 2. Generate a clean random ledger index key for this unique circulation checkout
     const dynamicTransactionKey = `BK-LOAN-${Math.floor(10000 + Math.random() * 90000)}`;
 
-    // 3. Commit data row to memory matrix so it propagates immediately to all student tabs
     dynamicLibraryCatalog[dynamicTransactionKey] = {
       title: manualBookTitle.trim(),
       author: "Circulation Desk Entry",
