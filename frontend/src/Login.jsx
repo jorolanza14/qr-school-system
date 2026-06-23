@@ -12,8 +12,10 @@ export default function Login() {
     setError('');
 
     try {
-      // 🎯 FIXED: Uses dynamic backticks to fetch the environment variable cleanly.
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/login`, {
+      // 🎯 FORCE RUNTIME RELATIVE ORIGIN (Bypasses any cached environment variables)
+      const targetUrl = window.location.origin + '/api/auth/login';
+
+      const response = await fetch(targetUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
