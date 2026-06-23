@@ -57,32 +57,6 @@ app.get('/api/student/events-list', (req, res) => {
 });
 
 // =========================================================================
-// 📚 CENTRALIZED IN-MEMORY LIBRARY STATE LEDGER 
-// =========================================================================
-let dynamicLibraryCatalog = {
-  "BK-FULLSTACK-01": { title: "Full-Stack Software Architecture", author: "Enzo Rolando", status: "Available", borrowedBy: null },
-  "BK-NETWORKS-02": { title: "Cisco Routing Foundations", author: "Dr. A. Cruz", status: "Available", borrowedBy: null }
-};
-
-app.post('/api/library/add-book', (req, res) => {
-  const { barcode, title, author } = req.body;
-  if (!barcode || !title) {
-    return res.status(400).json({ success: false, message: "Required asset parameters missing (Barcode/Title)." });
-  }
-  const cleanBarcode = barcode.toUpperCase().trim();
-  if (dynamicLibraryCatalog[cleanBarcode]) {
-    return res.status(400).json({ success: false, message: "This asset barcode identifier is already registered." });
-  }
-  dynamicLibraryCatalog[cleanBarcode] = {
-    title: title.trim(),
-    author: author ? author.trim() : 'Unknown Author',
-    status: 'Available',
-    borrowedBy: null
-  };
-  res.json({ success: true, message: `Asset successfully cataloged under tag ${cleanBarcode}!`, inventory: dynamicLibraryCatalog });
-});
-
-// =========================================================================
 // 📁 CENTRALIZED ACADEMIC CLASSROOM RESOURCES MATRIX
 // =========================================================================
 let classroomResources = [
@@ -171,13 +145,14 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 // =========================================================================
-// 📱 2. SECURE STUDENT QR CARD ENDPOINT (Joins Users & Students Tables)
+// 📱 2. SECURE STUDENT QR CARD ENDPOINT (Aggregates Active Library Book Loans)
 // =========================================================================
 app.get('/api/student/qr/:userId', async (req, res) => {
   const { userId } = req.params;
   try {
     const query = `
-      SELECT s.student_id_number, s.section_block, s.qr_token_fingerprint, s.account_status, u.name 
+      SELECT s.student_id_number, s.section_block, s.qr_token_fingerprint, s.account_status, u.name,
+             (SELECT COUNT(*) FROM library_books WHERE current_borrower_student_id = s.id) AS active_loans
       FROM students s
       JOIN users u ON s.user_id = u.id
       WHERE s.user_id = ?
@@ -196,7 +171,8 @@ app.get('/api/student/qr/:userId', async (req, res) => {
       studentId: profile.student_id_number,
       section: profile.section_block,
       status: profile.account_status,
-      name: profile.name
+      name: profile.name,
+      activeLoans: profile.active_loans
     });
   } catch (err) {
     console.error(err);
@@ -205,14 +181,17 @@ app.get('/api/student/qr/:userId', async (req, res) => {
 });
 
 // =========================================================================
-// 🛑 3. ADMIN CONTROL ENDPOINT: TOGGLE ACCOUNT RESTRICTIONS
+// 🛑 3. ADMIN CONTROL ENDPOINTS: TOGGLE ACCESS OVERRIDES & TELEMETRY
 // =========================================================================
 app.post('/api/admin/toggle-hold', async (req, res) => {
   const { token, newStatus } = req.body;
+  
+  // Accept standard or composite token representations securely
+  const targetToken = token.startsWith('STU-') ? token : `STU-${token.trim()}`;
   try {
     const [result] = await db.execute(
-      'UPDATE students SET account_status = ? WHERE qr_token_fingerprint = ?',
-      [newStatus, token]
+      'UPDATE students SET account_status = ? WHERE qr_token_fingerprint = ? OR id = ?',
+      [newStatus, targetToken, token.replace('STU-', '')]
     );
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: "Target student verification token failed." });
@@ -224,10 +203,37 @@ app.post('/api/admin/toggle-hold', async (req, res) => {
   }
 });
 
-// =========================================================================
-// 🗃️ ADMIN & FACULTY ROUTING PORTALS: ROSTER & DIRECTORY MATRICES
-// =========================================================================
+// 🎯 NEW: Admin Cocktail Telemetry loop computes global registration and swipe metrics live
+app.get('/api/admin/system-telemetry', async (req, res) => {
+  try {
+    const [userRows] = await db.execute('SELECT COUNT(*) as total_users FROM users');
+    const [swipeRows] = await db.execute('SELECT COUNT(*) as total_swipes FROM gate_attendance_logs');
+    
+    const [accountRows] = await db.execute(`
+      SELECT u.id, u.name, u.email, u.role, 
+             COALESCE(s.account_status, 'Clear') as status
+      FROM users u
+      LEFT JOIN students s ON s.user_id = u.id
+      ORDER BY u.id DESC
+    `);
 
+    res.json({
+      success: true,
+      telemetry: {
+        totalUsers: userRows[0].total_users,
+        totalSwipes: swipeRows[0].total_swipes
+      },
+      accounts: accountRows
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "System dashboard telemetry failure." });
+  }
+});
+
+// =========================================================================
+// 🗃️ FACULTY SUITE ROUTING PORTALS: ROSTER & DIRECTORY MATRICES
+// =========================================================================
 app.get('/api/admin/students-list', async (req, res) => {
   try {
     const query = `
@@ -243,12 +249,10 @@ app.get('/api/admin/students-list', async (req, res) => {
   }
 });
 
-// 🎯 UPDATED: Faculty custom aggregation loop computes class matrices dynamically from database entries
 app.get('/api/faculty/section/:sectionBlock', async (req, res) => {
   const { sectionBlock } = req.params;
   const upperSection = sectionBlock.trim().toUpperCase();
   try {
-    // 1. Fetch complete metadata records for students in this section block
     const rosterQuery = `
       SELECT s.id, s.student_id_number, s.section_block, s.account_status, u.name, u.email
       FROM students s
@@ -257,7 +261,6 @@ app.get('/api/faculty/section/:sectionBlock', async (req, res) => {
     `;
     const [rosterRows] = await db.execute(rosterQuery, [upperSection]);
 
-    // 2. Compute how many distinct students scanned a classroom code TODAY
     const verifiedTodayQuery = `
       SELECT COUNT(DISTINCT l.student_id) as verified_today
       FROM gate_attendance_logs l
@@ -269,7 +272,6 @@ app.get('/api/faculty/section/:sectionBlock', async (req, res) => {
     `;
     const [verifiedRows] = await db.execute(verifiedTodayQuery, [upperSection]);
 
-    // 3. Count at-risk students on academic systems holds
     const atRiskQuery = `
       SELECT COUNT(id) as at_risk FROM students 
       WHERE UPPER(section_block) = ? AND account_status = 'Hold'
@@ -279,19 +281,12 @@ app.get('/api/faculty/section/:sectionBlock', async (req, res) => {
     const totalRoster = rosterRows.length;
     const verifiedToday = verifiedRows[0]?.verified_today || 0;
     const atRiskCount = atRiskRows[0]?.at_risk || 0;
-
-    // Calculate term baseline performance yield metric ratio
     const performanceRate = totalRoster > 0 ? Math.round((verifiedToday / totalRoster) * 100) : 0;
 
     res.json({ 
       success: true, 
       list: rosterRows,
-      metrics: {
-        totalRoster,
-        verifiedToday,
-        atRiskCount,
-        performanceRate
-      }
+      metrics: { totalRoster, verifiedToday, atRiskCount, performanceRate }
     });
   } catch (err) {
     console.error(err);
@@ -299,40 +294,27 @@ app.get('/api/faculty/section/:sectionBlock', async (req, res) => {
   }
 });
 
-// =========================================================================
-// 📝 NEW: CLASSROOM ATTENDANCE LOGGING ENDPOINT (Writes Live Check-ins)
-// =========================================================================
 app.post('/api/attendance/classroom-checkin', async (req, res) => {
   const { studentToken, lectureCode } = req.body;
-
   if (!studentToken || !lectureCode) {
     return res.status(400).json({ success: false, message: "Missing required tracking parameters." });
   }
-
   try {
-    // Check if input token matches a token fingerprint or an explicit student ID
     const [students] = await db.execute(
       'SELECT id, section_block FROM students WHERE qr_token_fingerprint = ? OR UPPER(student_id_number) = ?',
       [studentToken.trim(), studentToken.trim().toUpperCase()]
     );
-
     if (students.length === 0) {
       return res.status(404).json({ success: false, message: "Student record authentication token mismatch." });
     }
-
     const student = students[0];
 
-    // Log the event directly into the active transactional history container
     await db.execute(
       'INSERT INTO gate_attendance_logs (student_id, terminal_status, action_description) VALUES (?, ?, ?)',
       [student.id, 'ALLOWED', `Classroom Check-in for Lecture Code: ${lectureCode.toUpperCase().trim()}`]
     );
 
-    res.json({ 
-      success: true, 
-      message: "Check-in database entry recorded successfully!",
-      section: student.section_block
-    });
+    res.json({ success: true, message: "Check-in database entry recorded successfully!", section: student.section_block });
   } catch (err) {
     console.error("Database checkin log failure:", err);
     res.status(500).json({ success: false, message: "Internal repository insertion failure." });
@@ -340,7 +322,7 @@ app.post('/api/attendance/classroom-checkin', async (req, res) => {
 });
 
 // =========================================================================
-// 🛡️ 4. SECURITY TERMINAL ENDPOINT: SCAN GATE & WRITE ENTRY PERMANENT LOGS
+// 🛡️ 4. SECURITY TERMINAL ENDPOINT: SCAN GATE TERMINAL LOGS
 // =========================================================================
 app.post('/api/security/scan', async (req, res) => {
   const { qrToken } = req.body;
@@ -377,10 +359,11 @@ app.post('/api/security/scan', async (req, res) => {
 });
 
 // =========================================================================
-// 📚 5. LIBRARIAN ENDPOINTS: MANAGING BORROW TRANSACTIONS
+// 📚 5. LIBRARIAN ENDPOINTS: REAL-TIME SECURE DATABASE INTEGRATION
 // =========================================================================
 app.get('/api/library/books', async (req, res) => {
   try {
+    // 🎯 FIXED: Pull catalog parameters live from active database rows instead of hardcoded maps
     const query = `
       SELECT b.book_barcode_id, b.title, b.author, b.availability_status, u.name AS borrowed_by
       FROM library_books b
@@ -388,22 +371,63 @@ app.get('/api/library/books', async (req, res) => {
       LEFT JOIN users u ON s.user_id = u.id
     `;
     const [rows] = await db.execute(query);
-    const catalog = { ...dynamicLibraryCatalog };
     
+    const catalogLedger = {};
     rows.forEach(book => {
-      if (!catalog[book.book_barcode_id]) {
-        catalog[book.book_barcode_id] = {
-          title: book.title,
-          author: book.author,
-          status: book.availability_status,
-          borrowedBy: book.borrowed_by
-        };
-      }
+      catalogLedger[book.book_barcode_id] = {
+        title: book.title,
+        author: book.author,
+        status: book.availability_status === 'Borrowed' ? 'Borrowed' : 'Available',
+        borrowedBy: book.borrowed_by
+      };
     });
-    return res.json({ success: true, inventory: catalog });
+    
+    return res.json({ success: true, inventory: catalogLedger });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: "Failed fetching library records." });
+  }
+});
+
+app.post('/api/library/add-book', async (req, res) => {
+  const { barcode, title, author } = req.body;
+  if (!barcode || !title) {
+    return res.status(400).json({ success: false, message: "Required parameters missing." });
+  }
+  const cleanBarcode = barcode.toUpperCase().trim();
+  try {
+    const [existing] = await db.execute('SELECT id FROM library_books WHERE book_barcode_id = ?', [cleanBarcode]);
+    if (existing.length > 0) {
+      return res.status(400).json({ success: false, message: "Barcode asset already cataloged." });
+    }
+
+    await db.execute(
+      'INSERT INTO library_books (book_barcode_id, title, author, availability_status) VALUES (?, ?, ?, "Available")',
+      [cleanBarcode, title.trim(), author ? author.trim() : 'Unknown Author']
+    );
+
+    // Dynamic return callback layout refresh loop structure
+    const [freshRows] = await db.execute(`
+      SELECT b.book_barcode_id, b.title, b.author, b.availability_status, u.name AS borrowed_by
+      FROM library_books b
+      LEFT JOIN students s ON b.current_borrower_student_id = s.id
+      LEFT JOIN users u ON s.user_id = u.id
+    `);
+    
+    const catalogLedger = {};
+    freshRows.forEach(book => {
+      catalogLedger[book.book_barcode_id] = {
+        title: book.title,
+        author: book.author,
+        status: book.availability_status === 'Borrowed' ? 'Borrowed' : 'Available',
+        borrowedBy: book.borrowed_by
+      };
+    });
+
+    res.json({ success: true, message: `Asset registered successfully!`, inventory: catalogLedger });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Library writing transaction fault." });
   }
 });
 
@@ -414,26 +438,36 @@ app.post('/api/library/checkout', async (req, res) => {
   }
   try {
     const [students] = await db.execute(`
-      SELECT s.id, u.name 
-      FROM students s 
+      SELECT s.id, u.name FROM students s 
       JOIN users u ON s.user_id = u.id 
-      WHERE s.qr_token_fingerprint = ?
-    `, [studentToken]);
+      WHERE s.qr_token_fingerprint = ? OR s.student_id_number = ?
+    `, [studentToken.trim(), studentToken.trim()]);
     
     if (students.length === 0) return res.status(404).json({ success: false, message: "Scanned student authorization pass token is invalid." });
     const student = students[0];
-    const dynamicTransactionKey = `BK-LOAN-${Math.floor(10000 + Math.random() * 90000)}`;
 
-    dynamicLibraryCatalog[dynamicTransactionKey] = {
-      title: manualBookTitle.trim(),
-      author: "Circulation Desk Entry",
-      status: 'Borrowed',
-      borrowedBy: student.name
-    };
-    res.json({ success: true, message: `Successfully checked out "${manualBookTitle}" to student account ${student.name}!`, inventory: dynamicLibraryCatalog });
+    // Find first available target match title in stock dynamically
+    const [books] = await db.execute(
+      'SELECT book_barcode_id FROM library_books WHERE UPPER(title) = ? AND availability_status = "Available" LIMIT 1',
+      [manualBookTitle.trim().toUpperCase()]
+    );
+
+    if (books.length === 0) {
+      return res.status(404).json({ success: false, message: "No available instances found matching that book title." });
+    }
+
+    const targetBarcode = books[0].book_barcode_id;
+
+    // Execute absolute transactional asset mapping inside your SQL tables
+    await db.execute(
+      'UPDATE library_books SET availability_status = "Borrowed", current_borrower_student_id = ? WHERE book_barcode_id = ?',
+      [student.id, targetBarcode]
+    );
+
+    res.json({ success: true, message: `Successfully checked out to student account ${student.name}!` });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: "Library engine transaction fault." });
+    res.status(500).json({ success: false, message: "Library engine checkout transaction fault." });
   }
 });
 
