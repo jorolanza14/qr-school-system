@@ -5,7 +5,7 @@ const pool = mysql.createPool({
   host: 'mysql-3a527387-thesis5.h.aivencloud.com',
   user: 'avnadmin',
   password: 'AVNS_BbFuXK9TNydOy0DlW2y', 
-  database: 'defaultdb',
+  database: 'qr_school_system',
   port: 22574,
   waitForConnections: true,
   connectionLimit: 10,
