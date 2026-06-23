@@ -226,8 +226,10 @@ app.post('/api/admin/toggle-hold', async (req, res) => {
 });
 
 // =========================================================================
-// 🗃️ ADMIN VIEW: FETCH ENTIRE REGISTERED STUDENT DIRECTORY
+// 🗃️ ADMIN & FACULTY ROUTING PORTALS: ROSTER & DIRECTORY MATRICES
 // =========================================================================
+
+// Global system matrix tool to get all structural accounts across the entire department
 app.get('/api/admin/students-list', async (req, res) => {
   try {
     const query = `
@@ -240,6 +242,24 @@ app.get('/api/admin/students-list', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: "Directory data acquisition fault." });
+  }
+});
+
+// 🎯 NEW: Faculty custom endpoint filtering tracking metrics dynamically by selected section block
+app.get('/api/faculty/section/:sectionBlock', async (req, res) => {
+  const { sectionBlock } = req.params;
+  try {
+    const query = `
+      SELECT s.id, s.student_id_number, s.section_block, s.account_status, u.name, u.email
+      FROM students s
+      JOIN users u ON s.user_id = u.id
+      WHERE UPPER(s.section_block) = ?
+    `;
+    const [rows] = await db.execute(query, [sectionBlock.trim().toUpperCase()]);
+    res.json({ success: true, list: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Faculty tracking matrix compilation error." });
   }
 });
 
