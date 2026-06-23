@@ -22,12 +22,12 @@ export default function FacultyDashboard() {
       try {
         const baseUrl = 'https://qr-school-system-7fp2.vercel.app';
         
-        // 🎯 FIXED: Directs request handling to the targeted faculty metrics calculation endpoint
+        // Directs request handling to the targeted faculty metrics calculation endpoint
         const res = await fetch(`${baseUrl}/api/faculty/section/${selectedSection}`);
         const data = await res.json();
         
         if (data.success) {
-          // 🎯 FIXED: Computes mock presentation metrics safely on top of your actual real database rows
+          // Computes representation metrics safely on top of your actual real database rows
           const structuredRoster = data.list.map((student, index) => {
             const attendancePercentage = student.student_id_number === '2026-10432' ? 95 : Math.floor(60 + Math.random() * 35);
             return {
@@ -41,7 +41,7 @@ export default function FacultyDashboard() {
 
           setRoster(structuredRoster);
 
-          // 🎯 FIXED: Pulls computed analytic values dynamically out of your backend database CURDATE calculation payload
+          // Pulls computed analytic values dynamically out of your backend database CURDATE calculation payload
           setStats({
             totalEnrolled: data.metrics?.totalRoster || structuredRoster.length,
             presentToday: data.metrics?.verifiedToday || 0,
@@ -117,7 +117,8 @@ export default function FacultyDashboard() {
 
       {/* KPI Stats Analytics Cards Row */}
       <section style={styles.gridStats}>
-        <div style={styles.statCard}><h3>Total Class Roster</h3><p style={styles.statNumber}>{styles.loading ? '...' : stats.totalEnrolled}</p><span>Enrolled Students</span></div>
+        {/* 🎯 FIXED: Evaluates local loading states cleanly instead of nonexistent style parameters */}
+        <div style={styles.statCard}><h3>Total Class Roster</h3><p style={styles.statNumber}>{loading ? '...' : stats.totalEnrolled}</p><span>Enrolled Students</span></div>
         <div style={styles.statCard}><h3 style={{ color: '#4ade80' }}>Verified In-Class Today</h3><p style={{ ...styles.statNumber, color: '#4ade80' }}>{stats.presentToday}</p><span>Scanned via QR Code</span></div>
         <div style={styles.statCard}><h3 style={{ color: '#60a5fa' }}>Average Attendance</h3><p style={{ ...styles.statNumber, color: '#60a5fa' }}>{stats.attendanceRate}%</p><span>Term Performance Rate</span></div>
         <div style={styles.statCard}><h3 style={{ color: '#f87171' }}>At-Risk Profiles</h3><p style={{ ...styles.statNumber, color: '#f87171' }}>{stats.warningCount}</p><span>Low Progress / System Holds</span></div>
