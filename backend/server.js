@@ -8,8 +8,17 @@ const db = require('./db');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors());
+// =========================================================================
+// 🌐 GLOBAL CROSS-ORIGIN CONFIGURATION (CORS Security Override)
+// =========================================================================
+// Allows your Vercel frontend link to break through production security gates smoothly
+app.use(cors({
+  origin: '*', 
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
 app.use(express.json());
 
 // 🌐 Baseline Health Route
@@ -374,7 +383,7 @@ app.get('/api/library/books', async (req, res) => {
       }
     });
 
-    // 🟢 FIXED: Dispatches database state catalog payload cleanly back to UI components
+    // 🟢 Dispatches database state catalog payload cleanly back to UI components
     return res.json({ success: true, inventory: catalog });
 
   } catch (err) {
@@ -424,7 +433,13 @@ app.post('/api/library/checkout', async (req, res) => {
 // =========================================================================
 // 🌐 STANDARD CLOUD SERVER INITIATION BLOCK
 // =========================================================================
-// GoDaddy handles SSL termination automatically at the load-balancer edge level
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`[CORE] Production Backend active on network port: ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`[CORE] Local Backend active on network port: ${PORT}`);
+  });
+}
+
+// Export the express engine wrapped as a Vercel Serverless Function
+const serverless = require('serverless-http');
+module.exports = app;
+module.exports = serverless(app);
