@@ -7,7 +7,7 @@ export default function LostAndFound() {
   const [newItem, setNewItem] = useState({ name: '', category: 'Electronics / Gadgets', location: '', desc: '' });
   const [feedback, setFeedback] = useState({ msg: '', type: '' });
 
-  // 🔄 Synchronization Engine: Query active campus property registry live from cloud backend
+  // 🔄 
   const fetchLostFoundCatalog = async () => {
     try {
       const baseUrl = 'https://qr-school-system-7fp2.vercel.app';
