@@ -8,7 +8,9 @@ export default function StudentEvents() {
   useEffect(() => {
     const fetchLiveEventsFromServerDatabase = async () => {
       try {
-        const res = await fetch('import.meta.env.VITE_API_BASE_URL1mr.preview.c36.airoapp.ai68.101:5000/api/student/events-list');
+        // 🎯 FIXED: Relocated request pipeline to point to live production servers
+        const baseUrl = 'https://qr-school-system-7fp2.vercel.app';
+        const res = await fetch(`${baseUrl}/api/student/events-list`);
         const data = await res.json();
         if (data.success) {
           setEvents(data.list);
@@ -67,8 +69,6 @@ export default function StudentEvents() {
 
 const styles = {
   container: { minHeight: '100vh', backgroundColor: '#0f172a', color: '#f1f5f9', fontFamily: 'sans-serif' },
-  
-  // 🔄 UPDATED: Added Flexbox rules to position headers and components in the center
   contentWrapper: { 
     padding: '40px', 
     maxWidth: '1200px', 
@@ -77,11 +77,8 @@ const styles = {
     flexDirection: 'column',
     alignItems: 'center'
   },
-  
   mainTitle: { fontSize: '24px', fontWeight: 'bold', color: '#fff', margin: '0 0 6px 0', textAlign: 'center' },
   mainSubtitle: { color: '#94a3b8', fontSize: '14px', margin: '0 0 30px 0', textAlign: 'center' },
-  
-  // 🔄 UPDATED: Forces the individual child map cards to follow full alignment constraints symmetrically
   feedWrapper: { 
     display: 'flex', 
     flexDirection: 'column', 
@@ -89,8 +86,6 @@ const styles = {
     width: '100%',
     alignItems: 'center'
   },
-  
-  // 🔄 UPDATED: Adjusted width constraints to match clean structural padding
   eventCard: { padding: '25px', background: '#1e293b', borderRadius: '12px', border: '1px solid #334155', width: '100%', maxWidth: '750px', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' },
   badge: { background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #f59e0b', letterSpacing: '0.5px', display: 'inline-block' },
   eventTitle: { margin: '15px 0 6px 0', color: '#fff', fontSize: '18px', fontWeight: 'bold' },
