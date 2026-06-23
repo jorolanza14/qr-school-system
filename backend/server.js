@@ -48,8 +48,9 @@ app.post('/api/admin/add-event', async (req, res) => {
       ]
     );
 
+    // 🎯 FIXED: Stripped volatile DATE_FORMAT strings to prevent Vercel query crashes
     const [freshEvents] = await db.execute(`
-      SELECT id, title, DATE_FORMAT(event_date, "%Y-%m-%d") as date, event_time as time, location, organizer, description as \`desc\` 
+      SELECT id, title, event_date as date, event_time as time, location, organizer, description as \`desc\` 
       FROM campus_announcements 
       ORDER BY id DESC
     `);
@@ -63,9 +64,9 @@ app.post('/api/admin/add-event', async (req, res) => {
 
 app.get('/api/student/events-list', async (req, res) => {
   try {
-    // Pulled live from the database table on every background polling worker tick
+    // 🎯 FIXED: Stripped volatile DATE_FORMAT strings so requests resolve cleanly on background polling intervals
     const [rows] = await db.execute(`
-      SELECT id, title, DATE_FORMAT(event_date, "%Y-%m-%d") as date, event_time as time, location, organizer, description as \`desc\` 
+      SELECT id, title, event_date as date, event_time as time, location, organizer, description as \`desc\` 
       FROM campus_announcements 
       ORDER BY id DESC
     `);
@@ -229,7 +230,7 @@ app.get('/api/admin/system-telemetry', async (req, res) => {
     const [userRows] = await db.execute('SELECT COUNT(*) as total_users FROM users');
     const [swipeRows] = await db.execute('SELECT COUNT(*) as total_swipes FROM gate_attendance_logs');
     
-    // 🎯 FIXED: Removed typo token word block on the execution array reference line below
+    // 🎯 FIXED: Removed the 'suicide' copy-paste typo from the line below to restore compilation
     const [accountRows] = await db.execute(`
       SELECT u.id, u.name, u.email, u.role, 
              COALESCE(s.account_status, 'Clear') as status
