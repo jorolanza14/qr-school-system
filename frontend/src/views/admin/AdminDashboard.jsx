@@ -8,38 +8,58 @@ export default function AdminDashboard() {
   // 🧭 Control Navigation Tabs State
   const [activeTab, setActiveTab] = useState('overview');
 
-  // 👥 Dynamic Mock System Users State
-  const [users, setUsers] = useState([
-    { id: 1, name: 'Josef Anza', email: 'anza.josef@school.edu', role: 'Student', status: 'Clear', registered: '2026-01-10' },
-    { id: 2, name: 'Dr. Alejandro Cruz', email: 'cruz.a@faculty.edu', role: 'Faculty', status: 'Active', registered: '2025-08-22' },
-    { id: 3, name: 'Officer Ronald Perez', email: 'perez.r@security.edu', role: 'Security', status: 'Active', registered: '2026-02-05' },
-    { id: 4, name: 'Clara Santos', email: 'santos.c@library.edu', role: 'Librarian', status: 'Active', registered: '2025-09-12' },
-  ]);
+  // 👥 Dynamic System Users & Metrics States
+  const [users, setUsers] = useState([]);
+  const [telemetry, setTelemetry] = useState({ totalUsers: 0, totalSwipes: 0 });
+  const [loading, setLoading] = useState(true);
 
   // 🗓️ Events State Layer
   const [events, setEvents] = useState([]);
   const [newEvent, setNewEvent] = useState({ title: '', date: '', time: '', location: '', organizer: 'Admin Office', desc: '' });
   const [eventFeedback, setEventFeedback] = useState('');
 
-  // 🔄 Synchronization Engine: Fetch and pull current live events list from Node API
+  // 🔄 Synchronization Engine: Fetch and pull metrics + accounts from production server
+  const fetchSystemTelemetry = async () => {
+    try {
+      const baseUrl = 'https://qr-school-system-7fp2.vercel.app';
+      const res = await fetch(`${baseUrl}/api/admin/system-telemetry`);
+      const data = await res.json();
+      if (data.success) {
+        setUsers(data.accounts);
+        setTelemetry(data.telemetry);
+      }
+    } catch (err) {
+      console.error("Telemetry acquisition pipeline mismatch:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch current live events list from Node API
   const fetchLiveEventsList = async () => {
     try {
-      const res = await fetch('import.meta.env.VITE_API_BASE_URL1mr.preview.c36.airoapp.ai68.101:5000/api/student/events-list');
+      const baseUrl = 'https://qr-school-system-7fp2.vercel.app';
+      const res = await fetch(`${baseUrl}/api/student/events-list`);
       const data = await res.json();
       if (data.success) {
         setEvents(data.list);
       }
     } catch (err) {
-      console.error("Initial data database acquisition fault:", err);
+      console.error("Events listing database sync fault:", err);
     }
   };
 
   // Setup live background loop hooks to sync cross-browser edits immediately
   useEffect(() => {
+    fetchSystemTelemetry();
     fetchLiveEventsList();
     
-    // Ticks every 2 seconds so split views remain perfectly balanced
-    const backgroundSyncInterval = setInterval(fetchLiveEventsList, 2000);
+    // Ticks every 3 seconds so dashboard telemetry mirrors live user traffic
+    const backgroundSyncInterval = setInterval(() => {
+      fetchSystemTelemetry();
+      fetchLiveEventsList();
+    }, 3000);
+    
     return () => clearInterval(backgroundSyncInterval);
   }, []);
 
@@ -49,7 +69,8 @@ export default function AdminDashboard() {
     if (!newEvent.title.trim() || !newEvent.date || !newEvent.location.trim()) return;
 
     try {
-      const response = await fetch('import.meta.env.VITE_API_BASE_URL1mr.preview.c36.airoapp.ai68.101:5000/api/admin/add-event', {
+      const baseUrl = 'https://qr-school-system-7fp2.vercel.app';
+      const response = await fetch(`${baseUrl}/api/admin/add-event`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newEvent)
@@ -57,7 +78,7 @@ export default function AdminDashboard() {
       const data = await response.json();
       
       if (data.success) {
-        setEvents(data.list); // Snaps the brand-new return array onto the preview board
+        setEvents(data.list);
         setNewEvent({ title: '', date: '', time: '', location: '', organizer: 'Admin Office', desc: '' });
         setEventFeedback('📢 Event broadcasted dynamically across the server network!');
         setTimeout(() => setEventFeedback(''), 3000);
@@ -68,14 +89,26 @@ export default function AdminDashboard() {
   };
 
   // ⚡ Change User Account Standing (Clear vs Hold)
-  const toggleUserStatus = (id) => {
-    setUsers(users.map(u => {
-      if (u.id === id && u.role === 'Student') {
-        const nextStatus = u.status === 'Clear' ? 'Hold Block' : 'Clear';
-        return { ...u, status: nextStatus };
+  const toggleUserStatus = async (userIdNumber, currentStatus) => {
+    try {
+      const baseUrl = 'https://qr-school-system-7fp2.vercel.app';
+      const nextStatus = currentStatus === 'Clear' ? 'Hold' : 'Clear';
+      
+      const response = await fetch(`${baseUrl}/api/admin/toggle-hold`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token: userIdNumber,
+          newStatus: nextStatus
+        })
+      });
+
+      if (response.ok) {
+        fetchSystemTelemetry(); // Re-trigger telemetry data pull to update view matrix instantly
       }
-      return u;
-    }));
+    } catch (err) {
+      console.error("Failed executing user access block toggle parameter:", err);
+    }
   };
 
   return (
@@ -98,8 +131,6 @@ export default function AdminDashboard() {
           <button onClick={() => setActiveTab('events')} style={{ ...styles.sidebarLink, ...(activeTab === 'events' ? styles.activeLink : {}) }}>📣 Event Broadcaster</button>
           
           <div style={{ ...styles.menuLabel, marginTop: '20px' }}>CROSS-PORTAL DIRECT ACCESSS</div>
-          <button onClick={() => navigate('/admin/holds')} style={styles.sidebarLink}>🛡️ Quick Issue Holds</button>
-          <button onClick={() => navigate('/security')} style={styles.sidebarLink}>🚪 Launch Gate Terminal</button>
           <button onClick={() => navigate('/faculty')} style={styles.sidebarLink}>👨‍🏫 Launch Faculty Suite</button>
           <button onClick={() => navigate('/student/attendance')} style={styles.sidebarLink}>🎒 Launch Student Hub</button>
         </aside>
@@ -116,9 +147,10 @@ export default function AdminDashboard() {
               <p style={styles.pageSubtitle}>Real-time telemetry from across the registered system database frameworks.</p>
               
               <section style={styles.statsGrid}>
-                <div style={styles.statCard}><h3>Active Registered Accounts</h3><p style={{ ...styles.statNum, color: '#38bdf8' }}>{users.length + 124}</p><span>Across 5 system roles</span></div>
+                {/* 🎯 FIXED: Pulls dynamic real counts directly from database metadata counts */}
+                <div style={styles.statCard}><h3>Active Registered Accounts</h3><p style={{ ...styles.statNum, color: '#38bdf8' }}>{loading ? '...' : telemetry.totalUsers}</p><span>Across 5 system roles</span></div>
                 <div style={styles.statCard}><h3>Total Live Events Bulletin</h3><p style={{ ...styles.statNum, color: '#4ade80' }}>{events.length}</p><span>Active scheduling lines</span></div>
-                <div style={styles.statCard}><h3>Terminal Gate Swipes</h3><p style={{ ...styles.statNum, color: '#f59e0b' }}>1,842</p><span>Synced with Security Index</span></div>
+                <div style={styles.statCard}><h3>Terminal Gate Swipes</h3><p style={{ ...styles.statNum, color: '#f59e0b' }}>{loading ? '...' : telemetry.totalSwipes}</p><span>Synced with Security Index</span></div>
               </section>
 
               <div style={{ ...styles.card, height: 'auto', marginTop: '20px' }}>
@@ -138,7 +170,7 @@ export default function AdminDashboard() {
               <h2 style={styles.pageTitle}>User Account Access Control Deck</h2>
               <p style={styles.pageSubtitle}>Monitor credentials, check registration dates, and override student authorization parameters.</p>
               
-              <div style={{ ...styles.card, height: 'auto', width: '100%' }}>
+              <div style={{ ...styles.card, height: 'auto', width: '100%', overflowY: 'auto' }}>
                 <h3 style={styles.cardHeader}>📋 System Accounts Registry Index</h3>
                 <table style={styles.table}>
                   <thead>
@@ -155,18 +187,18 @@ export default function AdminDashboard() {
                       <tr key={user.id} style={styles.tdRow}>
                         <td style={styles.tdName}>{user.name}</td>
                         <td style={styles.tdText}>{user.email}</td>
-                        <td style={styles.tdText}><span style={styles.roleBadge}>{user.role}</span></td>
+                        <td style={styles.tdText}><span style={styles.roleBadge}>{user.role.toUpperCase()}</span></td>
                         <td style={styles.tdText}>
                           <span style={{
                             ...styles.statusTextLabel,
                             color: user.status === 'Clear' || user.status === 'Active' ? '#4ade80' : '#f87171'
                           }}>
-                            ● {user.status}
+                            ● {user.status === 'Clear' ? 'Active' : user.status}
                           </span>
                         </td>
                         <td style={styles.tdText}>
-                          {user.role === 'Student' ? (
-                            <button onClick={() => toggleUserStatus(user.id)} style={{
+                          {user.role === 'student' ? (
+                            <button onClick={() => toggleUserStatus(`STU-${user.id}`, user.status)} style={{
                               ...styles.actionBtn,
                               backgroundColor: user.status === 'Clear' ? '#7f1d1d' : '#16a34a'
                             }}>
@@ -259,11 +291,9 @@ const styles = {
   workspace: { flex: '1', padding: '40px' },
   pageTitle: { fontSize: '24px', fontWeight: 'bold', color: '#fff', margin: '0 0 6px 0' },
   pageSubtitle: { color: '#94a3b8', fontSize: '14px', margin: '0' },
-  
   statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '24px' },
   statCard: { backgroundColor: '#1e293b', padding: '24px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', color: '#94a3b8' },
   statNum: { fontSize: '32px', fontWeight: 'bold', margin: '8px 0 4px 0' },
-  
   dashboardGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(440px, 1fr))', gap: '30px', marginTop: '24px' },
   card: { backgroundColor: '#1e293b', padding: '24px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', height: '480px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)' },
   cardHeader: { color: '#fff', fontSize: '15px', fontWeight: 'bold', margin: '0 0 16px 0', borderBottom: '1px solid #334155', paddingBottom: '10px' },
@@ -280,7 +310,6 @@ const styles = {
   evTitleText: { color: '#fff', fontSize: '14px', fontWeight: 'bold' },
   evOrganizerText: { fontSize: '11px', color: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)', padding: '2px 6px', borderRadius: '4px' },
   evMetaText: { color: '#64748b', fontSize: '12px', marginTop: '4px' },
-
   table: { width: '100%', borderCollapse: 'collapse', marginTop: '10px', textAlign: 'left' },
   thRow: { borderBottom: '2px solid #334155' },
   th: { padding: '12px 16px', color: '#64748b', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' },
