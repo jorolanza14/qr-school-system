@@ -16,7 +16,9 @@ export default function LibrarianIndex() {
   // Sync current totals from backend memory
   const syncDeskMetrics = async () => {
     try {
-      const res = await fetch('import.meta.env.VITE_API_BASE_URL1mr.preview.c36.airoapp.ai68.101:5000/api/library/books');
+      // 🎯 FIXED: Directs metrics pulling queries to your active production cloud server links
+      const baseUrl = 'https://qr-school-system-7fp2.vercel.app';
+      const res = await fetch(`${baseUrl}/api/library/books`);
       const data = await res.json();
       if (data.success) {
         const catalog = data.inventory;
@@ -79,7 +81,9 @@ export default function LibrarianIndex() {
     }
 
     try {
-      const response = await fetch('import.meta.env.VITE_API_BASE_URL1mr.preview.c36.airoapp.ai68.101:5000/api/library/checkout', {
+      // 🎯 FIXED: Relocates request pipelines to execute directly inside production network bounds
+      const baseUrl = 'https://qr-school-system-7fp2.vercel.app';
+      const response = await fetch(`${baseUrl}/api/library/checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

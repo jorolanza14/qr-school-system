@@ -7,10 +7,11 @@ export default function LibrarianInventory() {
   const [newBook, setNewBook] = useState({ barcode: '', title: '', author: '' });
   const [feedback, setFeedback] = useState({ msg: '', type: '' });
 
-  // 🔄 Sync full inventory map directly from your centralized Express network endpoints
+  // 🎯 FIXED: Directs request handling to your production Vercel server channel link
   const fetchInventory = async () => {
     try {
-      const res = await fetch('import.meta.env.VITE_API_BASE_URL1mr.preview.c36.airoapp.ai68.101:5000/api/library/books');
+      const baseUrl = 'https://qr-school-system-7fp2.vercel.app';
+      const res = await fetch(`${baseUrl}/api/library/books`);
       const data = await res.json();
       if (data.success) {
         setInventory(data.inventory);
@@ -28,13 +29,14 @@ export default function LibrarianInventory() {
     return () => clearInterval(autoSyncInterval);
   }, []);
 
-  // 🚀 POST PIPELINE PIPING: Commits new assets directly to the server memory space permanently
+  // 🚀 POST PIPELINE PIPING: Commits new assets directly to the live backend server
   const handleAddBook = async (e) => {
     e.preventDefault();
     if (!newBook.barcode.trim() || !newBook.title.trim()) return;
 
     try {
-      const response = await fetch('import.meta.env.VITE_API_BASE_URL1mr.preview.c36.airoapp.ai68.101:5000/api/library/add-book', {
+      const baseUrl = 'https://qr-school-system-7fp2.vercel.app';
+      const response = await fetch(`${baseUrl}/api/library/add-book`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -163,23 +165,19 @@ const styles = {
   navBtn: { background: 'none', border: 'none', color: '#94a3b8', fontSize: '14px', fontWeight: '600', cursor: 'pointer', padding: '6px 12px', borderRadius: '4px' },
   activeBtn: { backgroundColor: '#0f172a', color: '#38bdf8' },
   logoutBtn: { backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px', marginLeft: '10px' },
-  
   contentWrapper: { maxWidth: '1100px', margin: '0 auto', padding: '40px 20px' },
   pageTitle: { fontSize: '24px', fontWeight: 'bold', color: '#fff', margin: '0 0 6px 0' },
   pageSubtitle: { color: '#94a3b8', fontSize: '14px', margin: '0' },
-  
   layoutGrid: { display: 'flex', gap: '30px', flexWrap: 'wrap', marginTop: '25px' },
   workspaceGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '30px', marginTop: '25px' },
   card: { backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '26px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)', boxSizing: 'border-box' },
   cardHeader: { color: '#fff', fontSize: '16px', fontWeight: 'bold', margin: '0 0 16px 0', borderBottom: '1px solid #334155', paddingBottom: '10px' },
-  
   form: { display: 'flex', flexDirection: 'column', gap: '14px' },
   formGroup: { display: 'flex', flexDirection: 'column', gap: '6px' },
   label: { color: '#cbd5e1', fontSize: '12px', fontWeight: '600' },
   input: { padding: '10px 12px', backgroundColor: '#0f172a', color: '#fff', border: '1px solid #334155', borderRadius: '6px', fontSize: '14px', outline: 'none' },
   submitBtn: { backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '11px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', marginTop: '6px' },
   alert: { marginTop: '12px', padding: '10px', borderRadius: '6px', textAlign: 'center', fontSize: '12px', fontWeight: 'bold' },
-  
   table: { width: '100%', borderCollapse: 'collapse', textAlign: 'left' },
   thRow: { borderBottom: '2px solid #334155' },
   th: { padding: '12px 14px', color: '#64748b', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase' },
