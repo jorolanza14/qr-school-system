@@ -12,8 +12,8 @@ export default function Login() {
     setError('');
 
     try {
-      // 🎯 FIXED: Changed from ngrok back to your active localhost backend port
-      const response = await fetch('import.meta.env.VITE_API_BASE_URL1mr.preview.c36.airoapp.ai68.101:5000/api/auth/login', {
+      // 🎯 FIXED: Uses dynamic backticks to fetch the environment variable cleanly
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
