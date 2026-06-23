@@ -8,7 +8,7 @@ export default function FacultyDashboard() {
   const [roster, setRoster] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // 📈 Analytics State Calculations
+  // 📈 Analytics State Calculations tied directly to your live API aggregate engine response
   const [stats, setStats] = useState({ totalEnrolled: 0, presentToday: 0, attendanceRate: 0, warningCount: 0 });
 
   // 📁 Academic Upload Form State Layers
@@ -20,13 +20,15 @@ export default function FacultyDashboard() {
     const fetchFacultyData = async () => {
       setLoading(true);
       try {
-        const res = await fetch('import.meta.env.VITE_API_BASE_URL1mr.preview.c36.airoapp.ai68.101:5000/api/admin/students-list');
+        const baseUrl = 'https://qr-school-system-7fp2.vercel.app';
+        
+        // 🎯 FIXED: Directs request handling to the targeted faculty metrics calculation endpoint
+        const res = await fetch(`${baseUrl}/api/faculty/section/${selectedSection}`);
         const data = await res.json();
         
         if (data.success) {
-          const filteredStudents = data.list.filter(s => s.section_block === selectedSection);
-          
-          const structuredRoster = filteredStudents.map((student, index) => {
+          // 🎯 FIXED: Computes mock presentation metrics safely on top of your actual real database rows
+          const structuredRoster = data.list.map((student, index) => {
             const attendancePercentage = student.student_id_number === '2026-10432' ? 95 : Math.floor(60 + Math.random() * 35);
             return {
               ...student,
@@ -39,12 +41,13 @@ export default function FacultyDashboard() {
 
           setRoster(structuredRoster);
 
-          const total = structuredRoster.length;
-          const present = structuredRoster.filter(s => s.attendanceRate > 80).length;
-          const warnings = structuredRoster.filter(s => s.attendanceRate < 75 || s.account_status === 'Hold').length;
-          const averageRate = total > 0 ? Math.round(structuredRoster.reduce((acc, s) => acc + s.attendanceRate, 0) / total) : 0;
-
-          setStats({ totalEnrolled: total, presentToday: present, attendanceRate: averageRate, warningCount: warnings });
+          // 🎯 FIXED: Pulls computed analytic values dynamically out of your backend database CURDATE calculation payload
+          setStats({
+            totalEnrolled: data.metrics?.totalRoster || structuredRoster.length,
+            presentToday: data.metrics?.verifiedToday || 0,
+            attendanceRate: data.metrics?.performanceRate || 0,
+            warningCount: data.metrics?.atRiskCount || 0
+          });
         }
       } catch (err) {
         console.error("Error connecting to faculty database pipelines:", err);
@@ -62,7 +65,8 @@ export default function FacultyDashboard() {
     if (!uploadForm.title.trim() || !uploadForm.downloadUrl.trim()) return;
 
     try {
-      const response = await fetch('import.meta.env.VITE_API_BASE_URL1mr.preview.c36.airoapp.ai68.101:5000/api/resources/upload', {
+      const baseUrl = 'https://qr-school-system-7fp2.vercel.app';
+      const response = await fetch(`${baseUrl}/api/resources/upload`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -113,7 +117,7 @@ export default function FacultyDashboard() {
 
       {/* KPI Stats Analytics Cards Row */}
       <section style={styles.gridStats}>
-        <div style={styles.statCard}><h3>Total Class Roster</h3><p style={styles.statNumber}>{stats.totalEnrolled}</p><span>Enrolled Students</span></div>
+        <div style={styles.statCard}><h3>Total Class Roster</h3><p style={styles.statNumber}>{styles.loading ? '...' : stats.totalEnrolled}</p><span>Enrolled Students</span></div>
         <div style={styles.statCard}><h3 style={{ color: '#4ade80' }}>Verified In-Class Today</h3><p style={{ ...styles.statNumber, color: '#4ade80' }}>{stats.presentToday}</p><span>Scanned via QR Code</span></div>
         <div style={styles.statCard}><h3 style={{ color: '#60a5fa' }}>Average Attendance</h3><p style={{ ...styles.statNumber, color: '#60a5fa' }}>{stats.attendanceRate}%</p><span>Term Performance Rate</span></div>
         <div style={styles.statCard}><h3 style={{ color: '#f87171' }}>At-Risk Profiles</h3><p style={{ ...styles.statNumber, color: '#f87171' }}>{stats.warningCount}</p><span>Low Progress / System Holds</span></div>
