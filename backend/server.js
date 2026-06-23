@@ -27,33 +27,53 @@ app.get('/', (req, res) => {
 });
 
 // =========================================================================
-// 🗓️ CENTRALIZED CAMPUS EVENTS & SEMINARS LEDGER 
+// 🗓️ CENTRALIZED CAMPUS EVENTS & SEMINARS LEDGER (🎯 PERSISTENT DATABASE FIXED)
 // =========================================================================
-let campusEvents = [
-  { id: 1, title: 'BSIT Capstone Final Defense', date: '2026-06-15', time: '08:00 AM', location: 'IT Lab 3, Building B', organizer: 'Dean Office', desc: 'Final grading presentation loop for all 4th-year technology projects.' },
-  { id: 2, title: 'Campus Sports Festival 2026', date: '2026-06-22', time: '01:00 PM', location: 'Grand Gymnasium', organizer: 'Student Council', desc: 'Annual inter-college athletic tournaments and opening ceremonies.' }
-];
-
-app.post('/api/admin/add-event', (req, res) => {
+app.post('/api/admin/add-event', async (req, res) => {
   const { title, date, time, location, desc, organizer } = req.body;
   if (!title || !date || !location) {
     return res.status(400).json({ success: false, message: "Required event fields missing." });
   }
-  const eventRecord = {
-    id: Date.now(),
-    title,
-    date,
-    time: time || 'All Day',
-    location,
-    organizer: organizer || 'Admin Office',
-    desc: desc || 'No additional details provided.'
-  };
-  campusEvents = [eventRecord, ...campusEvents];
-  res.json({ success: true, message: 'Event broadcasted to centralized backend memory array!', list: campusEvents });
+  try {
+    // Saved to database instead of a memory array to prevent dashboard flashing on refresh
+    await db.execute(
+      'INSERT INTO campus_announcements (title, event_date, event_time, location, organizer, description) VALUES (?, ?, ?, ?, ?, ?)',
+      [
+        title.trim(), 
+        date, 
+        time || 'All Day', 
+        location.trim(), 
+        organizer || 'Admin Office', 
+        desc || 'No additional details provided.'
+      ]
+    );
+
+    const [freshEvents] = await db.execute(`
+      SELECT id, title, DATE_FORMAT(event_date, "%Y-%m-%d") as date, event_time as time, location, organizer, description as \`desc\` 
+      FROM campus_announcements 
+      ORDER BY id DESC
+    `);
+    
+    res.json({ success: true, message: 'Event permanently committed to central SQL database maps!', list: freshEvents });
+  } catch (err) {
+    console.error("EVENT UPLOAD FAULT:", err);
+    res.status(500).json({ success: false, message: "Database failure saving announcement lines." });
+  }
 });
 
-app.get('/api/student/events-list', (req, res) => {
-  res.json({ success: true, list: campusEvents });
+app.get('/api/student/events-list', async (req, res) => {
+  try {
+    // Pulled live from the database table on every background polling worker tick
+    const [rows] = await db.execute(`
+      SELECT id, title, DATE_FORMAT(event_date, "%Y-%m-%d") as date, event_time as time, location, organizer, description as \`desc\` 
+      FROM campus_announcements 
+      ORDER BY id DESC
+    `);
+    res.json({ success: true, list: rows });
+  } catch (err) {
+    console.error("EVENT FETCH FAULT:", err);
+    res.status(500).json({ success: false, message: "Database failure loading announcement list records." });
+  }
 });
 
 // =========================================================================
@@ -209,6 +229,7 @@ app.get('/api/admin/system-telemetry', async (req, res) => {
     const [userRows] = await db.execute('SELECT COUNT(*) as total_users FROM users');
     const [swipeRows] = await db.execute('SELECT COUNT(*) as total_swipes FROM gate_attendance_logs');
     
+    // 🎯 FIXED: Removed typo token word block on the execution array reference line below
     const [accountRows] = await db.execute(`
       SELECT u.id, u.name, u.email, u.role, 
              COALESCE(s.account_status, 'Clear') as status
@@ -472,7 +493,6 @@ app.post('/api/library/checkout', async (req, res) => {
 // =========================================================================
 app.get('/api/lost-found/list', async (req, res) => {
   try {
-    // 🎯 FIXED: Stripped volatile backend date format wrappers to prevent runtime string escape faults
     const query = `
       SELECT id, item_name, category_classification, location_found, descriptive_details, tracking_tag_id, item_status, logged_at
       FROM lost_and_found_items 
@@ -506,7 +526,6 @@ app.post('/api/lost-found/report', async (req, res) => {
       [itemName.trim(), safeCategory, location.trim(), safeDetails, uniqueCode]
     );
     
-    // 🎯 FIXED: Clean return selection query allows data payloads to map out natively on client screens
     const [freshRows] = await db.execute(`
       SELECT id, item_name, category_classification, location_found, descriptive_details, tracking_tag_id, item_status, logged_at
       FROM lost_and_found_items 
