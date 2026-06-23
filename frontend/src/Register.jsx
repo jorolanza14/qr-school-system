@@ -13,8 +13,9 @@ export default function Register() {
     e.preventDefault();
     setMessage('');
     try {
-      // 🎯 FIXED: Pulls dynamically from your environment configuration file cleanly
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+      // 🎯 FORCED PRODUCTION ROUTE: Directly target your live Vercel backend
+      const baseUrl = 'https://qr-school-system-7fp2.vercel.app'; 
+      
       const res = await fetch(`${baseUrl}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -31,6 +32,8 @@ export default function Register() {
         setMessage(data.message);
       }
     } catch (err) {
+      // Prints the raw error response safely inside your browser developer console tab
+      console.error("Caught Frontend Network Error Exception:", err);
       setMessage('Server connection lost.');
     }
   };
