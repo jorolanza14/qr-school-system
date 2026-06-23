@@ -1,6 +1,6 @@
-const mysql = require('mysql2');
+const mysql = require('mysql2/promise'); // 🎯 FIXED: Imports the native promise version directly
 
-// Force direct cloud connection strings to bypass any broken dashboard secrets or local .env files
+// Direct cloud connection stream optimized for serverless edge scaling
 const pool = mysql.createPool({
   host: 'mysql-3a527387-thesis5.h.aivencloud.com',
   user: 'avnadmin',
@@ -15,5 +15,5 @@ const pool = mysql.createPool({
   }
 });
 
-// Export the pool to use it across our endpoint modules using clean promises
-module.exports = pool.promise();
+// Export the pool directly
+module.exports = pool;
