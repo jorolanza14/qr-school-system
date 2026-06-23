@@ -203,6 +203,7 @@ app.post('/api/admin/toggle-hold', async (req, res) => {
   }
 });
 
+// Admin Cocktail Telemetry loop computes global registration and swipe metrics live
 app.get('/api/admin/system-telemetry', async (req, res) => {
   try {
     const [userRows] = await db.execute('SELECT COUNT(*) as total_users FROM users');
@@ -471,9 +472,9 @@ app.post('/api/library/checkout', async (req, res) => {
 // =========================================================================
 app.get('/api/lost-found/list', async (req, res) => {
   try {
+    // 🎯 FIXED: Stripped volatile backend date format wrappers to prevent runtime string escape faults
     const query = `
-      SELECT id, item_name, category_classification, location_found, descriptive_details, tracking_tag_id, item_status,
-             DATE_FORMAT(logged_at, "%b %d, %Y") as formatted_date 
+      SELECT id, item_name, category_classification, location_found, descriptive_details, tracking_tag_id, item_status, logged_at
       FROM lost_and_found_items 
       ORDER BY logged_at DESC
     `;
@@ -505,9 +506,9 @@ app.post('/api/lost-found/report', async (req, res) => {
       [itemName.trim(), safeCategory, location.trim(), safeDetails, uniqueCode]
     );
     
+    // 🎯 FIXED: Clean return selection query allows data payloads to map out natively on client screens
     const [freshRows] = await db.execute(`
-      SELECT id, item_name, category_classification, location_found, descriptive_details, tracking_tag_id, item_status,
-             DATE_FORMAT(logged_at, "%b %d, %Y") as formatted_date 
+      SELECT id, item_name, category_classification, location_found, descriptive_details, tracking_tag_id, item_status, logged_at
       FROM lost_and_found_items 
       ORDER BY logged_at DESC
     `);
