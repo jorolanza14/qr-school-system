@@ -430,16 +430,16 @@ app.post('/api/library/checkout', async (req, res) => {
   }
 });
 
+// Remove all serverless-http requires and wrap calls. Replace them with this:
+
 // =========================================================================
 // 🌐 STANDARD CLOUD SERVER INITIATION BLOCK
 // =========================================================================
 if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, '0.0.0.0', () => {
+  app.listen(PORT, () => {
     console.log(`[CORE] Local Backend active on network port: ${PORT}`);
   });
 }
 
-// Export the express engine wrapped as a Vercel Serverless Function
-const serverless = require('serverless-http');
+// 🎯 Export the raw Express instance natively for Vercel Serverless Architecture
 module.exports = app;
-module.exports = serverless(app);
