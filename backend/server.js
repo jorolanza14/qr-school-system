@@ -201,6 +201,7 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ success: false, message: "This email address is already registered." });
     }
 
+    // 🎯 Uses strict connection inserts mapped to your cloud tables
     const [userResult] = await db.execute(
       'INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
       [name.trim(), email.toLowerCase().trim(), password, role]
@@ -213,7 +214,9 @@ app.post('/api/auth/register', async (req, res) => {
         return res.status(400).json({ success: false, message: "Student accounts require an ID code and Section Block configuration." });
       }
 
-      const cleanStudentToken = `STU-${studentId.trim().replace(/[^a-zA-Z0-9]/g, '')}`;
+      // Generate a dynamic string token footprint without requiring broken runtime imports
+      const baseTokenId = studentId.trim().replace(/[^a-zA-Z0-9]/g, '');
+      const cleanStudentToken = `STU-TOKEN-${baseTokenId.toUpperCase()}-${Math.floor(10000 + Math.random() * 90000)}`;
 
       await db.execute(
         'INSERT INTO students (user_id, student_id_number, section_block, qr_token_fingerprint, account_status) VALUES (?, ?, ?, ?, ?)',
@@ -383,7 +386,6 @@ app.get('/api/library/books', async (req, res) => {
       }
     });
 
-    // 🟢 Dispatches database state catalog payload cleanly back to UI components
     return res.json({ success: true, inventory: catalog });
 
   } catch (err) {
@@ -429,8 +431,6 @@ app.post('/api/library/checkout', async (req, res) => {
     res.status(500).json({ success: false, message: "Library engine transaction fault." });
   }
 });
-
-// Remove all serverless-http requires and wrap calls. Replace them with this:
 
 // =========================================================================
 // 🌐 STANDARD CLOUD SERVER INITIATION BLOCK
