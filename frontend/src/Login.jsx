@@ -12,7 +12,7 @@ export default function Login() {
     setError('');
 
     try {
-      // 🎯 FIXED: Uses dynamic backticks to fetch the environment variable cleanly
+      // 🎯 FIXED: Uses dynamic backticks to fetch the environment variable cleanly.
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
