@@ -1,48 +1,62 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react'; // 🔄 Import our dynamic QR code rendering library
 import StudentNavbar from './StudentNavbar';
 
 export default function LostAndFound() {
-  const [items, setItems] = useState([
-    { id: 101, token: 'LNF-ITEM-RFID-88392', name: 'RFID Student ID Card', category: 'Documents', location: 'Building A Room 302', date: 'June 05, 2026', status: 'Unclaimed', desc: 'Belongs to a 3rd Year student. Found near the projector podium desk.', contact: 'Property Custodian Desk' },
-    { id: 102, token: 'LNF-ITEM-PNC-47291', name: 'Black Mechanical Pencil', category: 'Stationery', location: 'Campus Library Bench', date: 'June 04, 2026', status: 'Claimed', desc: 'Pilot Rexgrip 0.5mm. Safely returned to owner.', contact: 'None' },
-    { id: 103, token: 'LNF-ITEM-EAR-31049', name: 'Wireless Earbud Case', category: 'Electronics', location: 'Gymnasium Bleachers', date: 'June 02, 2026', status: 'Unclaimed', desc: 'White matte charging case. No brand name visible.', contact: 'Guard Post 2' }
-  ]);
-
+  const [items, setItems] = useState([]);
   const [newItem, setNewItem] = useState({ name: '', category: 'Electronics', location: '', desc: '' });
   const [feedback, setFeedback] = useState('');
 
-  // 📝 Handle Form Submission to Log a Found Asset Item
-  const handleSubmitReport = (e) => {
+  // 🔄 Synchronization Engine: Query active campus property registry live from cloud backend
+  const fetchLostFoundCatalog = async () => {
+    try {
+      const baseUrl = 'https://qr-school-system-7fp2.vercel.app';
+      const res = await fetch(`${baseUrl}/api/lost-found/list`);
+      const data = await res.json();
+      if (data.success) {
+        setItems(data.list);
+      }
+    } catch (err) {
+      console.error("Network baseline sync error fetching lost and found items:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchLostFoundCatalog();
+
+    // ⏱️ Auto-sync tracking interval checks for status flips (Claimed/Unclaimed) hands-free every 2 seconds
+    const backgroundSync = setInterval(fetchLostFoundCatalog, 2000);
+    return () => clearInterval(backgroundSync);
+  }, []);
+
+  // 📝 Handle Form Submission to Log a Found Asset Item permanently onto your cloud database tables
+  const handleSubmitReport = async (e) => {
     e.preventDefault();
     if (!newItem.name.trim() || !newItem.location.trim()) return;
 
-    const formattedDate = new Date().toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: '2-digit'
-    });
+    try {
+      const baseUrl = 'https://qr-school-system-7fp2.vercel.app';
+      const response = await fetch(`${baseUrl}/api/lost-found/report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          itemName: newItem.name,
+          category: newItem.category,
+          location: newItem.location,
+          details: newItem.desc
+        })
+      });
+      const data = await response.json();
 
-    const uniqueId = Date.now();
-    // 🛠️ Generate a specific tracking token formula for this item registry row
-    const generatedToken = `LNF-ITEM-${newItem.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase()}-${Math.floor(10000 + Math.random() * 90000)}`;
-
-    const itemLog = {
-      id: uniqueId,
-      token: generatedToken,
-      name: newItem.name,
-      category: newItem.category,
-      location: newItem.location,
-      date: formattedDate,
-      status: 'Unclaimed',
-      desc: newItem.desc || 'No additional details provided.',
-      contact: 'Surrendered by Student Finder'
-    };
-
-    setItems([itemLog, ...items]);
-    setNewItem({ name: '', category: 'Electronics', location: '', desc: '' });
-    setFeedback('🎉 Item logged and unique asset tracking QR code issued successfully!');
-    setTimeout(() => setFeedback(''), 4000);
+      if (data.success) {
+        setItems(data.list); // Snaps back fresh database array layout instantly
+        setNewItem({ name: '', category: 'Electronics', location: '', desc: '' });
+        setFeedback('🎉 Item logged and unique asset tracking QR code issued successfully!');
+        setTimeout(() => setFeedback(''), 4000);
+      }
+    } catch (err) {
+      console.error("Failed submitting tracking asset:", err);
+    }
   };
 
   return (
@@ -83,11 +97,11 @@ export default function LostAndFound() {
                   onChange={(e) => setNewItem({...newItem, category: e.target.value})}
                   style={styles.select}
                 >
-                  <option value="Electronics">Electronics / Gadgets</option>
+                  <option value="Electronics / Gadgets">Electronics / Gadgets</option>
                   <option value="Documents">IDs / Wallets / Documents</option>
-                  <option value="Stationery">Books & Stationery</option>
-                  <option value="Keys">Keys & Personal Tokens</option>
-                  <option value="Others">Other Accessories</option>
+                  <option value="Books & Stationery">Books & Stationery</option>
+                  <option value="Keys & Personal Tokens">Keys & Personal Tokens</option>
+                  <option value="Other Accessories">Other Accessories</option>
                 </select>
               </div>
 
@@ -127,56 +141,60 @@ export default function LostAndFound() {
             <h3 style={styles.sectionHeader}>📋 Active Notice Board ({items.length})</h3>
             
             <div style={styles.scrollContainer}>
-              {items.map(item => (
-                <div key={item.id} style={styles.itemCard}>
-                  
-                  {/* Outer flex row to hold data side-by-side with its custom QR asset token */}
-                  <div style={styles.itemCardLayoutBody}>
+              {items.length === 0 ? (
+                <div style={styles.emptyNotice}>No upcoming campus events scheduled at this time.</div>
+              ) : (
+                items.map(item => (
+                  <div key={item.id} style={styles.itemCard}>
                     
-                    {/* Left text data content container block */}
-                    <div style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <div style={styles.itemCardHeader}>
-                        <h4 style={styles.itemName}>{item.name}</h4>
-                        <span style={{
-                          ...styles.statusBadge,
-                          backgroundColor: item.status === 'Unclaimed' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-                          color: item.status === 'Unclaimed' ? '#f59e0b' : '#10b981',
-                          border: item.status === 'Unclaimed' ? '1px solid #f59e0b' : '1px solid #10b981'
-                        }}>
-                          {item.status.toUpperCase()}
-                        </span>
+                    {/* Outer flex row to hold data side-by-side with its custom QR asset token */}
+                    <div style={styles.itemCardLayoutBody}>
+                      
+                      {/* Left text data content container block */}
+                      <div style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={styles.itemCardHeader}>
+                          <h4 style={styles.itemName}>{item.item_name}</h4>
+                          <span style={{
+                            ...styles.statusBadge,
+                            backgroundColor: item.item_status === 'Unclaimed' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                            color: item.item_status === 'Unclaimed' ? '#f59e0b' : '#10b981',
+                            border: item.item_status === 'Unclaimed' ? '1px solid #f59e0b' : '1px solid #10b981'
+                          }}>
+                            {item.item_status.toUpperCase()}
+                          </span>
+                        </div>
+
+                        <div style={styles.metaRow}>
+                          <span style={styles.metaLabel}>📁 {item.category_classification}</span>
+                          <span style={styles.metaLabel}>📍 {item.location_found}</span>
+                          <span style={styles.metaLabel}>📅 {item.formatted_date || item.logged_at}</span>
+                        </div>
+
+                        <p style={styles.itemDesc}>{item.descriptive_details || 'No additional details provided.'}</p>
                       </div>
 
-                      <div style={styles.metaRow}>
-                        <span style={styles.metaLabel}>📁 {item.category}</span>
-                        <span style={styles.metaLabel}>📍 {item.location}</span>
-                        <span style={styles.metaLabel}>📅 {item.date}</span>
+                      {/* 🔄 Individual Item Inventory QR Code Block */}
+                      <div style={styles.qrBadgeWrapper}>
+                        <div style={styles.qrBoxCanvasContainer}>
+                          <QRCodeSVG 
+                            value={item.tracking_tag_id}
+                            size={90}
+                            bgColor={"#ffffff"}
+                            fgColor={"#0f172a"}
+                            level={"L"}
+                          />
+                        </div>
+                        <span style={styles.qrTokenTextLabel}>{item.tracking_tag_id}</span>
                       </div>
 
-                      <p style={styles.itemDesc}>{item.desc}</p>
                     </div>
-
-                    {/* 🔄 NEW FEATURE CARD RIGHT: Individual Item Inventory QR Code Block */}
-                    <div style={styles.qrBadgeWrapper}>
-                      <div style={styles.qrBoxCanvasContainer}>
-                        <QRCodeSVG 
-                          value={item.token}
-                          size={90}
-                          bgColor={"#ffffff"}
-                          fgColor={"#0f172a"}
-                          level={"L"}
-                        />
-                      </div>
-                      <span style={styles.qrTokenTextLabel}>{item.token}</span>
+                    
+                    <div style={styles.custodianFooter}>
+                      🔒 Physical Storage Handover Location: <span style={{color: '#38bdf8', fontWeight: 'bold'}}>Property Custodian Desk</span>
                     </div>
-
                   </div>
-                  
-                  <div style={styles.custodianFooter}>
-                    🔒 Physical Storage Handover Location: <span style={{color: '#38bdf8', fontWeight: 'bold'}}>{item.contact}</span>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
@@ -193,7 +211,6 @@ const styles = {
   pageTitle: { fontSize: '24px', fontWeight: 'bold', color: '#fff', margin: '0 0 8px 0' },
   pageSubtitle: { color: '#94a3b8', fontSize: '14px', lineHeight: '1.5', margin: '0' },
   layoutGrid: { display: 'grid', gridTemplateColumns: '400px 1fr', gap: '30px', alignItems: 'start' },
-  
   card: { backgroundColor: '#1e293b', padding: '28px', borderRadius: '12px', border: '1px solid #334155', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)' },
   cardHeader: { color: '#fff', fontSize: '16px', fontWeight: 'bold', margin: '0 0 20px 0', borderBottom: '1px solid #334155', paddingBottom: '12px' },
   form: { display: 'flex', flexDirection: 'column', gap: '16px' },
@@ -204,11 +221,9 @@ const styles = {
   textarea: { padding: '10px 14px', backgroundColor: '#0f172a', color: '#fff', border: '1px solid #334155', borderRadius: '6px', fontSize: '14px', outline: 'none', fontFamily: 'sans-serif', resize: 'none' },
   submitBtn: { backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', marginTop: '8px', transition: 'background 0.2s' },
   successAlert: { marginTop: '14px', padding: '10px', borderRadius: '6px', backgroundColor: 'rgba(22, 163, 74, 0.15)', color: '#4ade80', border: '1px solid #16a34a', fontSize: '13px', textAlign: 'center', fontWeight: 'bold' },
-  
   feedColumn: { display: 'flex', flexDirection: 'column', gap: '16px' },
   sectionHeader: { color: '#fff', fontSize: '16px', fontWeight: 'bold', margin: '0' },
   scrollContainer: { display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '650px', overflowY: 'auto', paddingRight: '6px' },
-  
   itemCard: { backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' },
   itemCardLayoutBody: { display: 'flex', gap: '20px', alignItems: 'flex-start' },
   itemCardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
@@ -217,11 +232,9 @@ const styles = {
   metaRow: { display: 'flex', gap: '12px', flexWrap: 'wrap' },
   metaLabel: { color: '#94a3b8', fontSize: '12px', backgroundColor: '#0f172a', padding: '3px 8px', borderRadius: '4px', border: '1px solid #1e293b' },
   itemDesc: { color: '#e2e8f0', fontSize: '13px', lineHeight: '1.5', margin: '0', backgroundColor: '#0f172a', padding: '12px', borderRadius: '6px', border: '1px solid #1e293b' },
-  
-  // New Inventory QR code block layout styling
   qrBadgeWrapper: { display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px', padding: '12px', minWidth: '120px' },
   qrBoxCanvasContainer: { backgroundColor: '#fff', padding: '6px', borderRadius: '4px', display: 'flex', justifyContent: 'center', alignItems: 'center' },
   qrTokenTextLabel: { fontSize: '10px', fontFamily: 'monospace', color: '#64748b', marginTop: '8px', textAlign: 'center', width: '100%', wordBreak: 'break-all' },
-  
-  custodianFooter: { fontSize: '12px', color: '#94a3b8', borderTop: '1px solid #334155', paddingTop: '10px', marginTop: '4px' }
+  custodianFooter: { fontSize: '12px', color: '#94a3b8', borderTop: '1px solid #334155', paddingTop: '10px', marginTop: '4px' },
+  emptyNotice: { color: '#64748b', fontStyle: 'italic', padding: '20px', backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', textAlign: 'center', width: '100%', maxWidth: '750px' }
 };
