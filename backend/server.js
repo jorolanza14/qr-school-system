@@ -188,7 +188,6 @@ app.get('/api/student/qr/:userId', async (req, res) => {
     }
     const profile = rows[0];
     
-    // 🎯 FIXED: Uses the globally packaged qrcode instance safely
     const qrDataUrl = await qrcode.toDataURL(profile.qr_token_fingerprint);
 
     res.json({
@@ -229,7 +228,6 @@ app.post('/api/admin/toggle-hold', async (req, res) => {
 // 🗃️ ADMIN & FACULTY ROUTING PORTALS: ROSTER & DIRECTORY MATRICES
 // =========================================================================
 
-// Global system matrix tool to get all structural accounts across the entire department
 app.get('/api/admin/students-list', async (req, res) => {
   try {
     const query = `
@@ -245,21 +243,99 @@ app.get('/api/admin/students-list', async (req, res) => {
   }
 });
 
-// 🎯 NEW: Faculty custom endpoint filtering tracking metrics dynamically by selected section block
+// 🎯 UPDATED: Faculty custom aggregation loop computes class matrices dynamically from database entries
 app.get('/api/faculty/section/:sectionBlock', async (req, res) => {
   const { sectionBlock } = req.params;
+  const upperSection = sectionBlock.trim().toUpperCase();
   try {
-    const query = `
+    // 1. Fetch complete metadata records for students in this section block
+    const rosterQuery = `
       SELECT s.id, s.student_id_number, s.section_block, s.account_status, u.name, u.email
       FROM students s
       JOIN users u ON s.user_id = u.id
       WHERE UPPER(s.section_block) = ?
     `;
-    const [rows] = await db.execute(query, [sectionBlock.trim().toUpperCase()]);
-    res.json({ success: true, list: rows });
+    const [rosterRows] = await db.execute(rosterQuery, [upperSection]);
+
+    // 2. Compute how many distinct students scanned a classroom code TODAY
+    const verifiedTodayQuery = `
+      SELECT COUNT(DISTINCT l.student_id) as verified_today
+      FROM gate_attendance_logs l
+      JOIN students s ON l.student_id = s.id
+      WHERE UPPER(s.section_block) = ? 
+        AND l.terminal_status = 'ALLOWED'
+        AND DATE(l.timestamp) = CURDATE()
+        AND l.action_description LIKE 'Classroom Check-in%'
+    `;
+    const [verifiedRows] = await db.execute(verifiedTodayQuery, [upperSection]);
+
+    // 3. Count at-risk students on academic systems holds
+    const atRiskQuery = `
+      SELECT COUNT(id) as at_risk FROM students 
+      WHERE UPPER(section_block) = ? AND account_status = 'Hold'
+    `;
+    const [atRiskRows] = await db.execute(atRiskQuery, [upperSection]);
+
+    const totalRoster = rosterRows.length;
+    const verifiedToday = verifiedRows[0]?.verified_today || 0;
+    const atRiskCount = atRiskRows[0]?.at_risk || 0;
+
+    // Calculate term baseline performance yield metric ratio
+    const performanceRate = totalRoster > 0 ? Math.round((verifiedToday / totalRoster) * 100) : 0;
+
+    res.json({ 
+      success: true, 
+      list: rosterRows,
+      metrics: {
+        totalRoster,
+        verifiedToday,
+        atRiskCount,
+        performanceRate
+      }
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: "Faculty tracking matrix compilation error." });
+  }
+});
+
+// =========================================================================
+// 📝 NEW: CLASSROOM ATTENDANCE LOGGING ENDPOINT (Writes Live Check-ins)
+// =========================================================================
+app.post('/api/attendance/classroom-checkin', async (req, res) => {
+  const { studentToken, lectureCode } = req.body;
+
+  if (!studentToken || !lectureCode) {
+    return res.status(400).json({ success: false, message: "Missing required tracking parameters." });
+  }
+
+  try {
+    // Check if input token matches a token fingerprint or an explicit student ID
+    const [students] = await db.execute(
+      'SELECT id, section_block FROM students WHERE qr_token_fingerprint = ? OR UPPER(student_id_number) = ?',
+      [studentToken.trim(), studentToken.trim().toUpperCase()]
+    );
+
+    if (students.length === 0) {
+      return res.status(404).json({ success: false, message: "Student record authentication token mismatch." });
+    }
+
+    const student = students[0];
+
+    // Log the event directly into the active transactional history container
+    await db.execute(
+      'INSERT INTO gate_attendance_logs (student_id, terminal_status, action_description) VALUES (?, ?, ?)',
+      [student.id, 'ALLOWED', `Classroom Check-in for Lecture Code: ${lectureCode.toUpperCase().trim()}`]
+    );
+
+    res.json({ 
+      success: true, 
+      message: "Check-in database entry recorded successfully!",
+      section: student.section_block
+    });
+  } catch (err) {
+    console.error("Database checkin log failure:", err);
+    res.status(500).json({ success: false, message: "Internal repository insertion failure." });
   }
 });
 
