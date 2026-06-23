@@ -35,7 +35,7 @@ export default function StudentAttendance() {
 
     const syncStudentStatus = async () => {
       try {
-        // 🎯 FIXED: Points explicitly to your live production backend server endpoint wrapper
+        // 🎯 Points explicitly to your live production backend server endpoint wrapper
         const baseUrl = 'https://qr-school-system-7fp2.vercel.app';
         const res = await fetch(`${baseUrl}/api/student/qr/${userId}`);
         const data = await res.json();
@@ -91,33 +91,75 @@ export default function StudentAttendance() {
   };
 
   // 🎯 AUTOMATIC CAPTURE SUCCESS HANDLER: Fires instantly when camera detects professor's QR code
-  const onClassroomScanSuccess = (decodedText) => {
-    if (decodedText.startsWith('LEC-')) {
-      setFeedback({ 
-        message: `🎯 Automatically Checked-In! Verified Token: ${decodedText}`, 
-        type: 'success' 
-      });
-      stopClassroomScanner(); 
-    } else {
+  const onClassroomScanSuccess = async (decodedText) => {
+    if (!decodedText.toUpperCase().startsWith('LEC-')) {
       setFeedback({ 
         message: `❌ Mismatched QR Code format. Please capture the rolling lecture code.`, 
         type: 'error' 
       });
+      return;
+    }
+
+    try {
+      const baseUrl = 'https://qr-school-system-7fp2.vercel.app';
+      const res = await fetch(`${baseUrl}/api/attendance/classroom-checkin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentToken: studentStats.qrToken,
+          lectureCode: decodedText.trim()
+        })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setFeedback({ 
+          message: `🎯 Automatically Checked-In! Entry successfully synchronized with database.`, 
+          type: 'success' 
+        });
+        stopClassroomScanner(); 
+      } else {
+        setFeedback({ message: `❌ ${data.message}`, type: 'error' });
+      }
+    } catch (err) {
+      console.error(err);
+      setFeedback({ message: '❌ Camera baseline transaction synchronization failure.', type: 'error' });
     }
   };
 
   const onClassroomScanFailure = (error) => {};
 
-  // ⌨️ Handle Manual Input Form validation as a fail-safe fallback alternative path
-  const handleManualSubmit = (e) => {
+  // ⌨️ Handle Manual Input Form validation targeting production database tables live
+  const handleManualSubmit = async (e) => {
     e.preventDefault();
     if (!manualToken.trim()) return;
 
-    if (manualToken.toUpperCase().startsWith('LEC-')) {
-      setFeedback({ message: `🎯 Check-In Successful! Token recognized for current block session.`, type: 'success' });
-      setManualToken('');
-    } else {
-      setFeedback({ message: `❌ Invalid Token Format. Please input the active code on the board.`, type: 'error' });
+    if (!manualToken.toUpperCase().startsWith('LEC-')) {
+      setFeedback({ message: `❌ Invalid Token Format. Please input the active code starting with LEC-`, type: 'error' });
+      return;
+    }
+
+    try {
+      const baseUrl = 'https://qr-school-system-7fp2.vercel.app';
+      const res = await fetch(`${baseUrl}/api/attendance/classroom-checkin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentToken: studentStats.qrToken,
+          lectureCode: manualToken.trim()
+        })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setFeedback({ message: `🎯 Check-In Successful! Token trace successfully written into live server ledger.`, type: 'success' });
+        setManualToken('');
+      } else {
+        setFeedback({ message: `❌ ${data.message}`, type: 'error' });
+      }
+    } catch (err) {
+      console.error(err);
+      setFeedback({ message: `❌ Server connection dropped during transactional write lookups.`, type: 'error' });
     }
   };
 
