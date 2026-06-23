@@ -16,7 +16,7 @@ export default function LibrarianIndex() {
   // Sync current totals from backend memory
   const syncDeskMetrics = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/library/books');
+      const res = await fetch('import.meta.env.VITE_API_BASE_URL1mr.preview.c36.airoapp.ai68.101:5000/api/library/books');
       const data = await res.json();
       if (data.success) {
         const catalog = data.inventory;
@@ -79,7 +79,7 @@ export default function LibrarianIndex() {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/library/checkout', {
+      const response = await fetch('import.meta.env.VITE_API_BASE_URL1mr.preview.c36.airoapp.ai68.101:5000/api/library/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -12,7 +12,8 @@ export default function Login() {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      // 🎯 FIXED: Changed from ngrok back to your active localhost backend port
+      const response = await fetch('import.meta.env.VITE_API_BASE_URL1mr.preview.c36.airoapp.ai68.101:5000/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -23,9 +24,8 @@ export default function Login() {
       if (data.success) {
         localStorage.setItem('userRole', data.user.role);
         localStorage.setItem('userName', data.user.name);
-        localStorage.setItem('userId', data.user.id); // Stored to pull student dynamic data later
+        localStorage.setItem('userId', data.user.id);
 
-        // 🗺️ Redirects perfectly matching your updated App.jsx routing paths
         if (data.user.role === 'admin') navigate('/admin');
         else if (data.user.role === 'faculty') navigate('/faculty');
         else if (data.user.role === 'library') navigate('/library');
@@ -73,7 +73,6 @@ export default function Login() {
 
         <button type="submit" style={styles.button}>Login to System</button>
 
-        {/* 📝 Navigation Link to Registration Portal */}
         <p style={styles.registerText}>
           Don't have an account?{' '}
           <Link to="/register" style={styles.link}>

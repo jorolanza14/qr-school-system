@@ -20,7 +20,7 @@ export default function FacultyDashboard() {
     const fetchFacultyData = async () => {
       setLoading(true);
       try {
-        const res = await fetch('http://localhost:5000/api/admin/students-list');
+        const res = await fetch('import.meta.env.VITE_API_BASE_URL1mr.preview.c36.airoapp.ai68.101:5000/api/admin/students-list');
         const data = await res.json();
         
         if (data.success) {
@@ -62,7 +62,7 @@ export default function FacultyDashboard() {
     if (!uploadForm.title.trim() || !uploadForm.downloadUrl.trim()) return;
 
     try {
-      const response = await fetch('http://localhost:5000/api/resources/upload', {
+      const response = await fetch('import.meta.env.VITE_API_BASE_URL1mr.preview.c36.airoapp.ai68.101:5000/api/resources/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

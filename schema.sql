@@ -1,8 +1,5 @@
--- Create the database automatically if it isn't there yet
-CREATE DATABASE IF NOT EXISTS qr_school_system;
+-- Active: 1782199478939@@mysql-3a527387-thesis5.h.aivencloud.com@22574@defaultdb
 
--- Now safely select it for table building
-USE qr_school_system;
 -- =========================================================================
 -- 🏫 SYSTEM DATABASE SCHEMATIC BLUEPRINT FOR QR SCHOOL MANAGEMENT SYSTEM
 -- =========================================================================
@@ -63,17 +60,18 @@ CREATE TABLE IF NOT EXISTS library_books (
 -- 🧪 SEED DATA GENERATION: PRE-POPULATE LIVE SYSTEM PROFILES FOR DEFENSE
 -- =========================================================================
 
--- Seed Accounts into Master Users (Passwords are raw 'password123' references for initial framework setup)
-INSERT INTO users (id, name, email, password_hash, role) VALUES
-(1, 'System Admin', 'admin@school.edu', 'password123', 'admin'),
-(2, 'Prof. Smith', 'faculty@school.edu', 'password123', 'faculty'),
-(3, 'Ms. Rachel', 'librarian@school.edu', 'password123', 'library'),
-(4, 'Officer Gate 1', 'security@school.edu', 'password123', 'security'),
-(5, 'Josef Anza', 'student@school.edu', 'password123', 'student');
+-- Seed Accounts into Master Users
+INSERT INTO users (name, email, password_hash, role) VALUES
+('System Admin', 'admin@school.edu', 'password123', 'admin'),
+('Prof. Smith', 'faculty@school.edu', 'password123', 'faculty'),
+('Ms. Rachel', 'librarian@school.edu', 'password123', 'library'),
+('Officer Gate 1', 'security@school.edu', 'password123', 'security'),
+('Josef Anza', 'student@school.edu', 'password123', 'student');
 
--- Connect user '5' to the explicit Student profile ledger matching your frontend keys
+-- Connect user Josef Anza to the explicit Student profile ledger matching your frontend keys
+-- (Uses LAST_INSERT_ID() to dynamically fetch Josef's auto-assigned ID safely)
 INSERT INTO students (user_id, student_id_number, section_block, qr_token_fingerprint, account_status) VALUES
-(5, '2026-10432', 'BSIT-4A', 'STU-TOKEN-ENZO-789456', 'Clear');
+((SELECT id FROM users WHERE email = 'student@school.edu'), '2026-10432', 'BSIT-4A', 'STU-TOKEN-ENZO-789456', 'Clear');
 
 -- Add standard physical library books matching our active QR tracking scans
 INSERT INTO library_books (book_barcode_id, title, author, availability_status) VALUES

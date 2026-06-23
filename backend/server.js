@@ -45,9 +45,7 @@ app.post('/api/admin/add-event', (req, res) => {
     desc: desc || 'No additional details provided.'
   };
 
-  // Prepend new event to the top of the global tracking array matrix
   campusEvents = [eventRecord, ...campusEvents];
-
   res.json({ success: true, message: 'Event broadcasted to centralized backend memory array!', list: campusEvents });
 });
 
@@ -61,7 +59,6 @@ app.get('/api/student/events-list', (req, res) => {
 // 📚 CENTRALIZED IN-MEMORY LIBRARY STATE LEDGER (Persistent Across Tab Swaps)
 // =========================================================================
 
-// Global In-Memory Fallback Seeds to hold assets added dynamically by the librarian
 let dynamicLibraryCatalog = {
   "BK-FULLSTACK-01": { title: "Full-Stack Software Architecture", author: "Enzo Rolando", status: "Available", borrowedBy: null },
   "BK-NETWORKS-02": { title: "Cisco Routing Foundations", author: "Dr. A. Cruz", status: "Available", borrowedBy: null }
@@ -77,12 +74,10 @@ app.post('/api/library/add-book', (req, res) => {
 
   const cleanBarcode = barcode.toUpperCase().trim();
 
-  // Guard condition rule: Prevent overwriting an existing book barcode signature
   if (dynamicLibraryCatalog[cleanBarcode]) {
     return res.status(400).json({ success: false, message: "This asset barcode identifier is already registered." });
   }
 
-  // Save directly to our global memory instance dictionary layer
   dynamicLibraryCatalog[cleanBarcode] = {
     title: title.trim(),
     author: author ? author.trim() : 'Unknown Author',
@@ -102,7 +97,6 @@ app.post('/api/library/add-book', (req, res) => {
 // 📁 CENTRALIZED ACADEMIC CLASSROOM RESOURCES MATRIX
 // =========================================================================
 
-// Global In-Memory Academic Resources Ledger Array (Persistent Fallback Seed Data)
 let classroomResources = [
   {
     id: 1,
@@ -124,12 +118,10 @@ let classroomResources = [
   }
 ];
 
-// 📡 Endpoint A: Students and Faculty fetch the shared resource repository index
 app.get('/api/resources/list', (req, res) => {
   res.json({ success: true, resources: classroomResources });
 });
 
-// 🚀 Endpoint B: Faculty uploads/broadcasts a new dynamic resource entry record
 app.post('/api/resources/upload', (req, res) => {
   const { title, professor, type, downloadUrl } = req.body;
 
@@ -137,20 +129,17 @@ app.post('/api/resources/upload', (req, res) => {
     return res.status(400).json({ success: false, message: "Required file resource parameters missing." });
   }
 
-  // Create formatted metadata parameters out of the transmission payload
   const newResourceFile = {
     id: Date.now(),
     title: title.trim(),
     professor: professor || 'Faculty Member',
     type: type.toUpperCase(),
-    fileSize: `${Math.floor(1 + Math.random() * 4)}.${Math.floor(1 + Math.random() * 9)} MB`, // Generated mock size
-    dateAdded: new Date().toISOString().split('T')[0], // Capture current date programmatically
+    fileSize: `${Math.floor(1 + Math.random() * 4)}.${Math.floor(1 + Math.random() * 9)} MB`,
+    dateAdded: new Date().toISOString().split('T')[0],
     downloadUrl: downloadUrl.trim()
   };
 
-  // Prepend into our global matrix array
   classroomResources = [newResourceFile, ...classroomResources];
-
   res.json({ success: true, message: "Document successfully dispatched to the student portals!", resources: classroomResources });
 });
 
@@ -159,7 +148,6 @@ app.post('/api/resources/upload', (req, res) => {
 // 🔑 1. AUTHENTICATION ENDPOINTS (Login & Registration Ecosystem)
 // =========================================================================
 
-// 🔐 PATHWAY A: User Login Authorization Check
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -191,7 +179,6 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// 📝 PATHWAY B: Dynamic User Provisioning and Seeding Setup
 app.post('/api/auth/register', async (req, res) => {
   const { name, email, password, role, studentId, section } = req.body;
 
@@ -200,13 +187,11 @@ app.post('/api/auth/register', async (req, res) => {
   }
 
   try {
-    // Check if the user email coordinates are already occupied in the table schema
     const [existingUsers] = await db.execute('SELECT id FROM users WHERE LOWER(email) = ?', [email.toLowerCase()]);
     if (existingUsers.length > 0) {
       return res.status(400).json({ success: false, message: "This email address is already registered." });
     }
 
-    // Insert credentials directly into the primary relational users matrix table row
     const [userResult] = await db.execute(
       'INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
       [name.trim(), email.toLowerCase().trim(), password, role]
@@ -214,13 +199,11 @@ app.post('/api/auth/register', async (req, res) => {
 
     const newUserId = userResult.insertId;
 
-    // Separate logic track branch specifically handling student profiles configuration
     if (role === 'student') {
       if (!studentId || !section) {
         return res.status(400).json({ success: false, message: "Student accounts require an ID code and Section Block configuration." });
       }
 
-      // Generate a clean cryptographic token profile signature value
       const cleanStudentToken = `STU-${studentId.trim().replace(/[^a-zA-Z0-9]/g, '')}`;
 
       await db.execute(
@@ -301,6 +284,24 @@ app.post('/api/admin/toggle-hold', async (req, res) => {
 });
 
 // =========================================================================
+// 🗃️ ADMIN VIEW: FETCH ENTIRE REGISTERED STUDENT DIRECTORY
+// =========================================================================
+app.get('/api/admin/students-list', async (req, res) => {
+  try {
+    const query = `
+      SELECT s.id, s.student_id_number, s.section_block, s.qr_token_fingerprint, s.account_status, u.name 
+      FROM students s
+      JOIN users u ON s.user_id = u.id
+    `;
+    const [rows] = await db.execute(query);
+    res.json({ success: true, list: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Directory data acquisition fault." });
+  }
+});
+
+// =========================================================================
 // 🛡️ 4. SECURITY TERMINAL ENDPOINT: SCAN GATE & WRITE ENTRY PERMANENT LOGS
 // =========================================================================
 app.post('/api/security/scan', async (req, res) => {
@@ -330,7 +331,6 @@ app.post('/api/security/scan', async (req, res) => {
       systemLog = 'Access Rejected: Outstanding system restriction or account hold active.';
     }
 
-    // Write this physical checkpoint action into the permanent database log ledger!
     await db.execute(
       'INSERT INTO gate_attendance_logs (student_id, terminal_status, action_description) VALUES (?, ?, ?)',
       [student.id, accessStatus, systemLog]
@@ -374,7 +374,9 @@ app.get('/api/library/books', async (req, res) => {
       }
     });
 
-    res.json({ success: true, inventory: catalog });
+    // 🟢 FIXED: Dispatches database state catalog payload cleanly back to UI components
+    return res.json({ success: true, inventory: catalog });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: "Failed fetching library records." });
@@ -420,23 +422,9 @@ app.post('/api/library/checkout', async (req, res) => {
 });
 
 // =========================================================================
-// 🗃️ ADMIN VIEW: FETCH ENTIRE REGISTERED STUDENT DIRECTORY
+// 🌐 STANDARD CLOUD SERVER INITIATION BLOCK
 // =========================================================================
-app.get('/api/admin/students-list', async (req, res) => {
-  try {
-    const query = `
-      SELECT s.id, s.student_id_number, s.section_block, s.qr_token_fingerprint, s.account_status, u.name 
-      FROM students s
-      JOIN users u ON s.user_id = u.id
-    `;
-    const [rows] = await db.execute(query);
-    res.json({ success: true, list: rows });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Directory data acquisition fault." });
-  }
-});
-
-app.listen(PORT, () => {
-  console.log(`Production Backend Engine successfully active on port ${PORT}`);
+// GoDaddy handles SSL termination automatically at the load-balancer edge level
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`[CORE] Production Backend active on network port: ${PORT}`);
 });

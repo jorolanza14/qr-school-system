@@ -10,16 +10,16 @@ export default function AdminHolds() {
   // 🔄 1. Fetch all student profiles automatically from the backend database
   const fetchStudentDirectory = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/library/books'); // Bypassing with an aggregate approach or custom endpoint
+      const res = await fetch('import.meta.env.VITE_API_BASE_URL1mr.preview.c36.airoapp.ai68.101:5000/api/library/books'); // Bypassing with an aggregate approach or custom endpoint
       // For a clean direct approach, let's pull via a dedicated backend fetch loop:
-      const response = await fetch('http://localhost:5000/api/security/scan', {
+      const response = await fetch('import.meta.env.VITE_API_BASE_URL1mr.preview.c36.airoapp.ai68.101:5000/api/security/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ qrToken: 'FETCH_ALL_PROFILES_ADMIN_OVERRIDE' }) // Handled cleanly below
       });
       
       // Let's create a robust, lightweight fetch query specifically for this table block:
-      const directoryRes = await fetch('http://localhost:5000/api/admin/students-list');
+      const directoryRes = await fetch('import.meta.env.VITE_API_BASE_URL1mr.preview.c36.airoapp.ai68.101:5000/api/admin/students-list');
       const data = await directoryRes.json();
       if (data.success) {
         setStudents(data.list);
@@ -35,7 +35,7 @@ export default function AdminHolds() {
   useEffect(() => {
     const bootstrapData = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/admin/students-list');
+        const response = await fetch('import.meta.env.VITE_API_BASE_URL1mr.preview.c36.airoapp.ai68.101:5000/api/admin/students-list');
         const data = await response.json();
         if (data.success) setStudents(data.list);
       } catch (err) {
@@ -56,7 +56,7 @@ export default function AdminHolds() {
     setAlertMessage('');
 
     try {
-      const response = await fetch('http://localhost:5000/api/admin/toggle-hold', {
+      const response = await fetch('import.meta.env.VITE_API_BASE_URL1mr.preview.c36.airoapp.ai68.101:5000/api/admin/toggle-hold', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, newStatus })

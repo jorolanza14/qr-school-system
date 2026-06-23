@@ -36,7 +36,7 @@ export default function StudentAttendance() {
     const syncStudentStatus = async () => {
       try {
         // 📡 Hit your secure student profile endpoint passing the active userId parameter
-        const res = await fetch(`http://localhost:5000/api/student/qr/${userId}`);
+        const res = await fetch(`import.meta.env.VITE_API_BASE_URL1mr.preview.c36.airoapp.ai68.101:5000/api/student/qr/${userId}`);
         const data = await res.json();
         
         if (data.success) {

@@ -8,7 +8,7 @@ export default function StudentResources() {
   // 🔄 Synchronization Loop: Pull classroom downloads from Node backend memory
   const fetchLiveCoursewareFeed = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/resources/list');
+      const res = await fetch('import.meta.env.VITE_API_BASE_URL1mr.preview.c36.airoapp.ai68.101:5000/api/resources/list');
       const data = await res.json();
       if (data.success) {
         setResources(data.resources);

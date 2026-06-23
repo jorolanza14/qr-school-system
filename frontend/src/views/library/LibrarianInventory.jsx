@@ -10,7 +10,7 @@ export default function LibrarianInventory() {
   // 🔄 Sync full inventory map directly from your centralized Express network endpoints
   const fetchInventory = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/library/books');
+      const res = await fetch('import.meta.env.VITE_API_BASE_URL1mr.preview.c36.airoapp.ai68.101:5000/api/library/books');
       const data = await res.json();
       if (data.success) {
         setInventory(data.inventory);
@@ -34,7 +34,7 @@ export default function LibrarianInventory() {
     if (!newBook.barcode.trim() || !newBook.title.trim()) return;
 
     try {
-      const response = await fetch('http://localhost:5000/api/library/add-book', {
+      const response = await fetch('import.meta.env.VITE_API_BASE_URL1mr.preview.c36.airoapp.ai68.101:5000/api/library/add-book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
