@@ -35,8 +35,9 @@ export default function StudentAttendance() {
 
     const syncStudentStatus = async () => {
       try {
-        // 📡 Hit your secure student profile endpoint passing the active userId parameter
-        const res = await fetch(`import.meta.env.VITE_API_BASE_URL1mr.preview.c36.airoapp.ai68.101:5000/api/student/qr/${userId}`);
+        // 🎯 FIXED: Points explicitly to your live production backend server endpoint wrapper
+        const baseUrl = 'https://qr-school-system-7fp2.vercel.app';
+        const res = await fetch(`${baseUrl}/api/student/qr/${userId}`);
         const data = await res.json();
         
         if (data.success) {
@@ -162,7 +163,6 @@ export default function StudentAttendance() {
             <h2 style={styles.cardTitle}>🚪 Campus Access Key</h2>
             <p style={styles.cardSubtitle}>Present this digital token at the primary terminal gate scanner to clear checkpoint entries.</p>
             <div style={styles.qrContainer}>
-              {/* 🔄 FIXED: QRCode SVG value reads dynamically from backend tracking parameters state */}
               <QRCodeSVG value={studentStats.qrToken} size={160} bgColor={"#ffffff"} fgColor={"#0f172a"} level={"L"} />
             </div>
             <p style={styles.tokenLabel}>Token Fingerprint: <code style={styles.code}>{studentStats.qrToken}</code></p>
