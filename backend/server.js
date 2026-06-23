@@ -203,7 +203,6 @@ app.post('/api/admin/toggle-hold', async (req, res) => {
   }
 });
 
-// 🎯 NEW: Admin Cocktail Telemetry loop computes global registration and swipe metrics live
 app.get('/api/admin/system-telemetry', async (req, res) => {
   try {
     const [userRows] = await db.execute('SELECT COUNT(*) as total_users FROM users');
@@ -363,7 +362,6 @@ app.post('/api/security/scan', async (req, res) => {
 // =========================================================================
 app.get('/api/library/books', async (req, res) => {
   try {
-    // 🎯 FIXED: Pull catalog parameters live from active database rows instead of hardcoded maps
     const query = `
       SELECT b.book_barcode_id, b.title, b.author, b.availability_status, u.name AS borrowed_by
       FROM library_books b
@@ -406,7 +404,6 @@ app.post('/api/library/add-book', async (req, res) => {
       [cleanBarcode, title.trim(), author ? author.trim() : 'Unknown Author']
     );
 
-    // Dynamic return callback layout refresh loop structure
     const [freshRows] = await db.execute(`
       SELECT b.book_barcode_id, b.title, b.author, b.availability_status, u.name AS borrowed_by
       FROM library_books b
@@ -446,7 +443,6 @@ app.post('/api/library/checkout', async (req, res) => {
     if (students.length === 0) return res.status(404).json({ success: false, message: "Scanned student authorization pass token is invalid." });
     const student = students[0];
 
-    // Find first available target match title in stock dynamically
     const [books] = await db.execute(
       'SELECT book_barcode_id FROM library_books WHERE UPPER(title) = ? AND availability_status = "Available" LIMIT 1',
       [manualBookTitle.trim().toUpperCase()]
@@ -458,7 +454,6 @@ app.post('/api/library/checkout', async (req, res) => {
 
     const targetBarcode = books[0].book_barcode_id;
 
-    // Execute absolute transactional asset mapping inside your SQL tables
     await db.execute(
       'UPDATE library_books SET availability_status = "Borrowed", current_borrower_student_id = ? WHERE book_barcode_id = ?',
       [student.id, targetBarcode]
@@ -468,6 +463,70 @@ app.post('/api/library/checkout', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: "Library engine checkout transaction fault." });
+  }
+});
+
+// =========================================================================
+// 🔍 6. CAMPUS LOST & FOUND INTEGRATED ASSET MATRIX (🎯 DYNAMIC PERSISTENCE)
+// =========================================================================
+app.get('/api/lost-found/list', async (req, res) => {
+  try {
+    const query = `
+      SELECT id, item_name, category_classification, location_found, descriptive_details, tracking_tag_id, item_status,
+             DATE_FORMAT(logged_at, "%b %d, %Y") as formatted_date 
+      FROM lost_and_found_items 
+      ORDER BY logged_at DESC
+    `;
+    const [rows] = await db.execute(query);
+    res.json({ success: true, list: rows });
+  } catch (err) {
+    console.error("Error compiling campus property indexes:", err);
+    res.status(500).json({ success: false, message: "Error compiling campus property indexes." });
+  }
+});
+
+app.post('/api/lost-found/report', async (req, res) => {
+  try {
+    const { itemName, category, location, details } = req.body;
+    
+    if (!itemName || !location) {
+      return res.status(400).json({ success: false, message: "Required reporting descriptors missing." });
+    }
+
+    // Safe fallback formatting for clean tracking tags
+    const cleanPrefix = (itemName || "ITEM").replace(/[^a-zA-Z]/g, '').substring(0, 4).toUpperCase() || "ITEM";
+    const uniqueCode = `LNF-ITEM-${cleanPrefix}-${Math.floor(10000 + Math.random() * 90000)}`;
+    
+    const safeDetails = details && details.trim() !== "" ? details.trim() : "No additional details provided.";
+    const safeCategory = category || "Other Accessories";
+
+    await db.execute(
+      'INSERT INTO lost_and_found_items (item_name, category_classification, location_found, descriptive_details, tracking_tag_id) VALUES (?, ?, ?, ?, ?)',
+      [itemName.trim(), safeCategory, location.trim(), safeDetails, uniqueCode]
+    );
+    
+    const [freshRows] = await db.execute(`
+      SELECT id, item_name, category_classification, location_found, descriptive_details, tracking_tag_id, item_status,
+             DATE_FORMAT(logged_at, "%b %d, %Y") as formatted_date 
+      FROM lost_and_found_items 
+      ORDER BY logged_at DESC
+    `);
+    
+    res.json({ success: true, message: "Asset registered to persistent cloud index tables!", list: freshRows });
+  } catch (err) {
+    console.error("CRITICAL LOST AND FOUND SAVE FAULT:", err);
+    res.status(500).json({ success: false, message: "Failed writing tracking entry records.", error: err.message });
+  }
+});
+
+app.post('/api/lost-found/toggle-claim', async (req, res) => {
+  const { itemId, nextStatus } = req.body;
+  try {
+    await db.execute('UPDATE lost_and_found_items SET item_status = ? WHERE id = ?', [nextStatus, itemId]);
+    res.json({ success: true, message: `Asset record status rewritten to ${nextStatus.toUpperCase()}` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Database update transaction error." });
   }
 });
 
