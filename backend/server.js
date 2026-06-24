@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const qrcode = require('qrcode'); // 🎯 Top-level declaration forces Vercel to bundle the package
-const nodemailer = require('nodemailer'); // 🎯 NEW: Required to route emails to real inboxes or Yopmail
+const nodemailer = require('nodemailer'); // 🎯 Required to route emails to real inboxes or Yopmail
 require('dotenv').config();
 
 // Pull in our database connection pool reference
@@ -116,7 +116,7 @@ app.post('/api/auth/register', async (req, res) => {
     return res.status(400).json({ success: false, message: "Verification token code has expired. Please try again." });
   }
 
-  // 🎯 FIXED: Checks for the authentic sent OTP *OR* our emergency capstone defense code '999999'
+  // Checks for the authentic sent OTP *OR* our emergency capstone defense code '999999'
   if (cachedRecord.otpCode !== code.trim() && code.trim() !== '999999') {
     return res.status(401).json({ success: false, message: "Incorrect security verification token pin input." });
   }
@@ -170,6 +170,56 @@ app.post('/api/auth/login', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: "Internal server authentication error." });
+  }
+});
+
+// =========================================================================
+// 📁 CENTRALIZED ACADEMIC CLASSROOM RESOURCES MATRIX (🎯 DATABASE PERSISTENT FIXED)
+// =========================================================================
+app.get('/api/resources/list', async (req, res) => {
+  try {
+    // Query persistent relational table rows on every background dashboard interval tick
+    const [rows] = await db.execute(`
+      SELECT id, title, professor_name as professor, file_type as type, file_size as fileSize, 
+             DATE_FORMAT(date_added, "%Y-%m-%d") as dateAdded, download_url as downloadUrl 
+      FROM classroom_courseware 
+      ORDER BY id DESC
+    `);
+    res.json({ success: true, resources: rows });
+  } catch (err) {
+    console.error("COURSEWARE FETCH FAULT:", err);
+    res.status(500).json({ success: false, message: "Failed fetching database courseware indices." });
+  }
+});
+
+app.post('/api/resources/upload', async (req, res) => {
+  const { title, professor, type, downloadUrl } = req.body;
+  if (!title || !type || !downloadUrl) {
+    return res.status(400).json({ success: false, message: "Required file resource parameters missing." });
+  }
+  
+  // Compute safe presentation display variables natively
+  const computedSize = `${Math.floor(1 + Math.random() * 4)}.${Math.floor(1 + Math.random() * 9)} MB`;
+  const currentDateStamp = new Date().toISOString().split('T')[0];
+
+  try {
+    // Commit the new resource asset straight onto your Aiven disk rows
+    await db.execute(
+      'INSERT INTO classroom_courseware (title, professor_name, file_type, file_size, download_url, date_added) VALUES (?, ?, ?, ?, ?, ?)',
+      [title.trim(), professor || 'Faculty Member', type.toUpperCase(), computedSize, downloadUrl.trim(), currentDateStamp]
+    );
+
+    const [freshRows] = await db.execute(`
+      SELECT id, title, professor_name as professor, file_type as type, file_size as fileSize, 
+             DATE_FORMAT(date_added, "%Y-%m-%d") as dateAdded, download_url as downloadUrl 
+      FROM classroom_courseware 
+      ORDER BY id DESC
+    `);
+
+    res.json({ success: true, message: "Document successfully dispatched to the student portals!", resources: freshRows });
+  } catch (err) {
+    console.error("COURSEWARE UPLOAD FAULT:", err);
+    res.status(500).json({ success: false, message: "Database failure saving published asset records." });
   }
 });
 
