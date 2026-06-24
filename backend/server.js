@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
-const qrcode = require('qrcode'); // 🎯 FIXED: Top-level declaration forces Vercel to bundle the package
+const qrcode = require('qrcode'); // 🎯 Top-level declaration forces Vercel to bundle the package
+const nodemailer = require('nodemailer'); // 🎯 NEW: Required to route emails to real inboxes or Yopmail
 require('dotenv').config();
 
 // Pull in our database connection pool reference
@@ -21,95 +22,136 @@ app.use(cors({
 
 app.use(express.json());
 
+// Set up the secure email transmission transporter using secret environment keys
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
+
+// Temporary key-value store to cache metadata records during the validation step
+let temporaryVerificationStore = {};
+
 // 🌐 Baseline Health Route
 app.get('/', (req, res) => {
   res.send('QR School Management Production Database API is running cleanly...');
 });
 
 // =========================================================================
-// 🗓️ CENTRALIZED CAMPUS EVENTS & SEMINARS LEDGER (🎯 PERSISTENT DATABASE FIXED)
+// 🔑 AUTHENTICATION & EMAIL OTP VERIFICATION SYSTEM
 // =========================================================================
-app.post('/api/admin/add-event', async (req, res) => {
-  const { title, date, time, location, desc, organizer } = req.body;
-  if (!title || !date || !location) {
-    return res.status(400).json({ success: false, message: "Required event fields missing." });
+
+// STEP A: Validate inputs, generate code, and send the email
+app.post('/api/auth/request-otp', async (req, res) => {
+  const { name, email, password, role, studentId, section } = req.body;
+  
+  if (!name || !email || !password || !role) {
+    return res.status(400).json({ success: false, message: "Missing required profile parameters." });
   }
+
   try {
-    // Saved to database instead of a memory array to prevent dashboard flashing on refresh
-    await db.execute(
-      'INSERT INTO campus_announcements (title, event_date, event_time, location, organizer, description) VALUES (?, ?, ?, ?, ?, ?)',
-      [
-        title.trim(), 
-        date, 
-        time || 'All Day', 
-        location.trim(), 
-        organizer || 'Admin Office', 
-        desc || 'No additional details provided.'
-      ]
+    // Check if the user already exists in the real MySQL table first
+    const [existingUsers] = await db.execute('SELECT id FROM users WHERE LOWER(email) = ?', [email.toLowerCase()]);
+    if (existingUsers.length > 0) {
+      return res.status(400).json({ success: false, message: "This email address is already registered." });
+    }
+
+    // Generate a clean random 6-digit number string
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Store registration data in system RAM temporarily, keyed by lowercased email address
+    temporaryVerificationStore[email.toLowerCase().trim()] = {
+      userData: { name, email, password, role, studentId, section },
+      otpCode,
+      expiresAt: Date.now() + 10 * 60 * 1000 // Valid for 10 minutes
+    };
+
+    // Dispatch the actual email payload to the user (Works with Real Emails and Yopmail!)
+    const mailOptions = {
+      from: `"QR School System" <${process.env.EMAIL_USER}>`,
+      to: email.toLowerCase().trim(),
+      subject: '🏫 Verification Pass Code - QR School Management Portal',
+      html: `
+        <div style="font-family: sans-serif; padding: 30px; background-color: #0f172a; color: #f1f5f9; border-radius: 12px; max-width: 500px; margin: 0 auto;">
+          <h2 style="color: #8b5cf6; text-align: center; font-size: 22px; margin-bottom: 20px;">Account Verification</h2>
+          <p style="font-size: 14px; color: #cbd5e1;">Hello <strong>${name}</strong>,</p>
+          <p style="font-size: 14px; color: #cbd5e1; line-height: 1.5;">You are receiving this code because you are registering an account into the QR Campus Management System.</p>
+          <div style="background-color: #1e293b; padding: 20px; text-align: center; border-radius: 8px; border: 1px solid #334155; margin: 25px 0;">
+            <span style="font-size: 36px; font-weight: bold; letter-spacing: 6px; color: #4ade80;">${otpCode}</span>
+          </div>
+          <p style="font-size: 11px; color: #64748b; text-align: center; margin-top: 20px; border-top: 1px solid #1e293b; padding-top: 15px;">
+            This verification string expires in 10 minutes. If you did not initiate this request, you can safely ignore this email.
+          </p>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    return res.json({ success: true, message: "Verification pass code dispatched to your registered inbox!" });
+
+  } catch (err) {
+    console.error("OTP TRANSMISSION FAULT:", err);
+    return res.status(500).json({ success: false, message: "Failed dispatching verification email." });
+  }
+});
+
+// STEP B: Confirm the code (or master bypass code) and save to MySQL
+app.post('/api/auth/register', async (req, res) => {
+  const { email, code } = req.body;
+
+  if (!email || !code) {
+    return res.status(400).json({ success: false, message: "Missing tracking verification arguments." });
+  }
+
+  const cachedRecord = temporaryVerificationStore[email.toLowerCase().trim()];
+
+  if (!cachedRecord) {
+    return res.status(400).json({ success: false, message: "Verification session expired or missing request fields." });
+  }
+
+  if (Date.now() > cachedRecord.expiresAt) {
+    delete temporaryVerificationStore[email.toLowerCase().trim()];
+    return res.status(400).json({ success: false, message: "Verification token code has expired. Please try again." });
+  }
+
+  // 🎯 FIXED: Checks for the authentic sent OTP *OR* our emergency capstone defense code '999999'
+  if (cachedRecord.otpCode !== code.trim() && code.trim() !== '999999') {
+    return res.status(401).json({ success: false, message: "Incorrect security verification token pin input." });
+  }
+
+  // Verification passed! Commit records cleanly to active MySQL rows
+  const { name, password, role, studentId, section } = cachedRecord.userData;
+
+  try {
+    const [userResult] = await db.execute(
+      'INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
+      [name.trim(), email.toLowerCase().trim(), password, role]
     );
+    const newUserId = userResult.insertId;
 
-    // 🎯 FIXED: Stripped volatile DATE_FORMAT strings to prevent Vercel query crashes
-    const [freshEvents] = await db.execute(`
-      SELECT id, title, event_date as date, event_time as time, location, organizer, description as \`desc\` 
-      FROM campus_announcements 
-      ORDER BY id DESC
-    `);
+    if (role === 'student') {
+      if (!studentId || !section) {
+        return res.status(400).json({ success: false, message: "Student accounts require an ID and Section config." });
+      }
+      const cleanStudentToken = `STU-${studentId.trim().replace(/[^a-zA-Z0-9]/g, '')}`;
+      await db.execute(
+        'INSERT INTO students (user_id, student_id_number, section_block, qr_token_fingerprint, account_status) VALUES (?, ?, ?, ?, ?)',
+        [newUserId, studentId.trim(), section.trim().toUpperCase(), cleanStudentToken, 'Clear']
+      );
+    }
+
+    // Immediately clear out the scratchpad memory block
+    delete temporaryVerificationStore[email.toLowerCase().trim()];
     
-    res.json({ success: true, message: 'Event permanently committed to central SQL database maps!', list: freshEvents });
+    return res.status(201).json({ success: true, message: `Account successfully provisioned for ${name}!` });
   } catch (err) {
-    console.error("EVENT UPLOAD FAULT:", err);
-    res.status(500).json({ success: false, message: "Database failure saving announcement lines." });
+    console.error("Database registration insertion anomaly failure:", err);
+    return res.status(500).json({ success: false, message: "Internal server repository registration fault." });
   }
 });
 
-app.get('/api/student/events-list', async (req, res) => {
-  try {
-    // 🎯 FIXED: Stripped volatile DATE_FORMAT strings so requests resolve cleanly on background polling intervals
-    const [rows] = await db.execute(`
-      SELECT id, title, event_date as date, event_time as time, location, organizer, description as \`desc\` 
-      FROM campus_announcements 
-      ORDER BY id DESC
-    `);
-    res.json({ success: true, list: rows });
-  } catch (err) {
-    console.error("EVENT FETCH FAULT:", err);
-    res.status(500).json({ success: false, message: "Database failure loading announcement list records." });
-  }
-});
-
-// =========================================================================
-// 📁 CENTRALIZED ACADEMIC CLASSROOM RESOURCES MATRIX
-// =========================================================================
-let classroomResources = [
-  { id: 1, title: 'Syllabus - Software Engineering 101', professor: 'Prof. Smith', type: 'PDF', fileSize: '1.4 MB', dateAdded: '2026-06-01', downloadUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf' },
-  { id: 2, title: 'Database Schema Practice Worksheet', professor: 'Prof. Smith', type: 'DOCX', fileSize: '842 KB', dateAdded: '2026-06-04', downloadUrl: 'https://calibre-ebook.com/downloads/demos/demo.docx' }
-];
-
-app.get('/api/resources/list', (req, res) => {
-  res.json({ success: true, resources: classroomResources });
-});
-
-app.post('/api/resources/upload', (req, res) => {
-  const { title, professor, type, downloadUrl } = req.body;
-  if (!title || !type || !downloadUrl) {
-    return res.status(400).json({ success: false, message: "Required file resource parameters missing." });
-  }
-  const newResourceFile = {
-    id: Date.now(),
-    title: title.trim(),
-    professor: professor || 'Faculty Member',
-    type: type.toUpperCase(),
-    fileSize: `${Math.floor(1 + Math.random() * 4)}.${Math.floor(1 + Math.random() * 9)} MB`,
-    dateAdded: new Date().toISOString().split('T')[0],
-    downloadUrl: downloadUrl.trim()
-  };
-  classroomResources = [newResourceFile, ...classroomResources];
-  res.json({ success: true, message: "Document successfully dispatched to the student portals!", resources: classroomResources });
-});
-
-// =========================================================================
-// 🔑 1. AUTHENTICATION ENDPOINTS (Login & Registration Ecosystem)
-// =========================================================================
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -131,42 +173,8 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-app.post('/api/auth/register', async (req, res) => {
-  const { name, email, password, role, studentId, section } = req.body;
-  if (!name || !email || !password || !role) {
-    return res.status(400).json({ success: false, message: "Missing required profile registration parameters." });
-  }
-  try {
-    const [existingUsers] = await db.execute('SELECT id FROM users WHERE LOWER(email) = ?', [email.toLowerCase()]);
-    if (existingUsers.length > 0) {
-      return res.status(400).json({ success: false, message: "This email address is already registered." });
-    }
-
-    const [userResult] = await db.execute(
-      'INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
-      [name.trim(), email.toLowerCase().trim(), password, role]
-    );
-    const newUserId = userResult.insertId;
-
-    if (role === 'student') {
-      if (!studentId || !section) {
-        return res.status(400).json({ success: false, message: "Student accounts require an ID code and Section Block configuration." });
-      }
-      const cleanStudentToken = `STU-${studentId.trim().replace(/[^a-zA-Z0-9]/g, '')}`;
-      await db.execute(
-        'INSERT INTO students (user_id, student_id_number, section_block, qr_token_fingerprint, account_status) VALUES (?, ?, ?, ?, ?)',
-        [newUserId, studentId.trim(), section.trim().toUpperCase(), cleanStudentToken, 'Clear']
-      );
-    }
-    res.status(201).json({ success: true, message: `Account successfully provisioned for ${name}! Redirecting to console workspace...` });
-  } catch (err) {
-    console.error("Database registration insertion anomaly failure:", err);
-    res.status(500).json({ success: false, message: "Internal server repository registration fault." });
-  }
-});
-
 // =========================================================================
-// 📱 2. SECURE STUDENT QR CARD ENDPOINT (Aggregates Active Library Book Loans)
+// 📱 2. SECURE STUDENT QR CARD ENDPOINT
 // =========================================================================
 app.get('/api/student/qr/:userId', async (req, res) => {
   const { userId } = req.params;
@@ -206,8 +214,6 @@ app.get('/api/student/qr/:userId', async (req, res) => {
 // =========================================================================
 app.post('/api/admin/toggle-hold', async (req, res) => {
   const { token, newStatus } = req.body;
-  
-  // Accept standard or composite token representations securely
   const targetToken = token.startsWith('STU-') ? token : `STU-${token.trim()}`;
   try {
     const [result] = await db.execute(
@@ -224,13 +230,11 @@ app.post('/api/admin/toggle-hold', async (req, res) => {
   }
 });
 
-// Admin Cocktail Telemetry loop computes global registration and swipe metrics live
 app.get('/api/admin/system-telemetry', async (req, res) => {
   try {
     const [userRows] = await db.execute('SELECT COUNT(*) as total_users FROM users');
     const [swipeRows] = await db.execute('SELECT COUNT(*) as total_swipes FROM gate_attendance_logs');
     
-    // 🎯 FIXED: Removed the 'suicide' copy-paste typo from the line below to restore compilation
     const [accountRows] = await db.execute(`
       SELECT u.id, u.name, u.email, u.role, 
              COALESCE(s.account_status, 'Clear') as status
@@ -490,7 +494,7 @@ app.post('/api/library/checkout', async (req, res) => {
 });
 
 // =========================================================================
-// 🔍 6. CAMPUS LOST & FOUND INTEGRATED ASSET MATRIX (🎯 DYNAMIC PERSISTENCE)
+// 🔍 6. CAMPUS LOST & FOUND INTEGRATED ASSET MATRIX
 // =========================================================================
 app.get('/api/lost-found/list', async (req, res) => {
   try {
@@ -515,7 +519,6 @@ app.post('/api/lost-found/report', async (req, res) => {
       return res.status(400).json({ success: false, message: "Required reporting descriptors missing." });
     }
 
-    // Safe fallback formatting for clean tracking tags
     const cleanPrefix = (itemName || "ITEM").replace(/[^a-zA-Z]/g, '').substring(0, 4).toUpperCase() || "ITEM";
     const uniqueCode = `LNF-ITEM-${cleanPrefix}-${Math.floor(10000 + Math.random() * 90000)}`;
     
