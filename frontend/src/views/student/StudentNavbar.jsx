@@ -27,9 +27,24 @@ export default function StudentNavbar() {
 }
 
 const styles = {
-  nav: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 30px', background: '#1e293b', color: '#fff', fontFamily: 'sans-serif' },
-  brand: { fontSize: '18px', fontWeight: 'bold' },
-  links: { display: 'flex', gap: '20px', alignItems: 'center' },
-  link: { color: '#cbd5e1', textDecoration: 'none', fontSize: '14px', fontWeight: '500' },
-  logoutBtn: { background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }
+  nav: { 
+    display: 'flex', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    padding: '15px 4%', // 🎯 FIXED: Uses a fluid percentage-based padding to match widescreen edges cleanly
+    background: '#1e293b', 
+    color: '#fff', 
+    fontFamily: 'sans-serif',
+    flexWrap: 'wrap', // 🎯 FIXED: Lets the brand title and link section split onto separate rows cleanly on small viewports
+    gap: '15px'
+  },
+  brand: { fontSize: '18px', fontWeight: 'bold', whiteSpace: 'nowrap' },
+  links: { 
+    display: 'flex', 
+    gap: '15px', // 🎯 FIXED: Slightly narrowed down from 20px to prevent squeezing item bounds on intermediate viewports
+    alignItems: 'center',
+    flexWrap: 'wrap' // 🎯 FIXED: Safely wraps the internal text links on phones to completely end the Messenger browser overlap
+  },
+  link: { color: '#cbd5e1', textDecoration: 'none', fontSize: '14px', fontWeight: '500', whiteSpace: 'nowrap' },
+  logoutBtn: { background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', whiteSpace: 'nowrap' }
 };
