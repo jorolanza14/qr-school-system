@@ -224,26 +224,47 @@ app.post('/api/resources/upload', async (req, res) => {
 });
 
 // =========================================================================
-// 📱 2. SECURE STUDENT QR CARD ENDPOINT
+// 📱 2. SECURE STUDENT QR CARD ENDPOINT (🎯 METRICS CALCULATION FIXED)
 // =========================================================================
 app.get('/api/student/qr/:userId', async (req, res) => {
   const { userId } = req.params;
   try {
-    const query = `
-      SELECT s.student_id_number, s.section_block, s.qr_token_fingerprint, s.account_status, u.name,
+    // 1. Fetch base profile info along with active library loans
+    const profileQuery = `
+      SELECT s.id AS student_table_id, s.student_id_number, s.section_block, s.qr_token_fingerprint, s.account_status, u.name,
              (SELECT COUNT(*) FROM library_books WHERE current_borrower_student_id = s.id) AS active_loans
       FROM students s
       JOIN users u ON s.user_id = u.id
       WHERE s.user_id = ?
     `;
-    const [rows] = await db.execute(query, [userId]);
-    if (rows.length === 0) {
+    const [profileRows] = await db.execute(profileQuery, [userId]);
+    if (profileRows.length === 0) {
       return res.status(404).json({ success: false, message: "Student record profile not found." });
     }
-    const profile = rows[0];
+    const profile = profileRows[0];
+
+    // 2. Compute dynamic attendance rates based on real database entries for this student
+    const attendanceQuery = `
+      SELECT 
+        COUNT(*) as total_logs,
+        SUM(CASE WHEN terminal_status = 'ALLOWED' THEN 1 ELSE 0 END) as present_logs
+      FROM gate_attendance_logs 
+      WHERE student_id = ?
+    `;
+    const [attendanceRows] = await db.execute(attendanceQuery, [profile.student_table_id]);
     
+    const totalLogs = attendanceRows[0]?.total_logs || 0;
+    const presentLogs = attendanceRows[0]?.present_logs || 0;
+    
+    // 🎯 FIXED: If it's a new user with 0 logs, it evaluates to 0. Otherwise, computes real percentage.
+    const calculatedAttendanceRate = totalLogs > 0 
+      ? Math.round((presentLogs / totalLogs) * 100) 
+      : 0;
+
+    // 3. Generate the dynamic QR image string matrix wrapper
     const qrDataUrl = await qrcode.toDataURL(profile.qr_token_fingerprint);
 
+    // Return the response structured exactly how your frontend fields expect it
     res.json({
       success: true,
       qrCodeUrl: qrDataUrl,
@@ -251,11 +272,12 @@ app.get('/api/student/qr/:userId', async (req, res) => {
       section: profile.section_block,
       status: profile.account_status,
       name: profile.name,
-      activeLoans: profile.active_loans
+      activeLoans: profile.active_loans,
+      overallAttendance: calculatedAttendanceRate // 🎯 This updates your 71% to a clean 0%!
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Error compiling database QR stream." });
+    console.error("METRICS ENGINE FAULT:", err);
+    res.status(500).json({ success: false, message: "Error compiling database QR stream parameters." });
   }
 });
 
