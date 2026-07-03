@@ -117,7 +117,6 @@ INSERT IGNORE INTO users (name, email, password_hash, role) VALUES
 ('Josef Anza', 'student@school.edu', 'password123', 'student');
 
 -- Connect user Josef Anza to the explicit Student profile ledger matching your frontend keys
--- 🎯 UPDATED: Injects the verified 'STU-202610432' token directly on primary insertion setup
 INSERT IGNORE INTO students (user_id, student_id_number, section_block, qr_token_fingerprint, account_status) VALUES
 ((SELECT id FROM users WHERE email = 'student@school.edu'), '2026-10432', 'BSIT-4A', 'STU-202610432', 'Clear');
 
@@ -154,6 +153,11 @@ TRUNCATE TABLE gate_attendance_logs;
 TRUNCATE TABLE classroom_attendance_logs;
 SET FOREIGN_KEY_CHECKS = 1;
 
--- Remove non-essential playground data profiles to preserve clean dashboard summaries
-DELETE FROM students WHERE student_id_number NOT IN ('2026-10432');
-DELETE FROM users WHERE email NOT IN ('admin@school.edu', 'faculty@school.edu', 'librarian@school.edu', 'security@school.edu', 'student@school.edu');
+-- 👤 DYNAMIC FIX: Cleans temp student lists but retains default seeds and ALL personnel staff roles
+-- This guarantees registered faculty/librarian/admin/security profiles won't get deleted mid-run!
+DELETE FROM students 
+WHERE student_id_number NOT IN ('2026-10432');
+
+DELETE FROM users 
+WHERE role NOT IN ('admin', 'faculty', 'library', 'security') 
+  AND email NOT IN ('student@school.edu');
