@@ -56,12 +56,24 @@ CREATE TABLE IF NOT EXISTS library_books (
     FOREIGN KEY (current_borrower_student_id) REFERENCES students(id) ON DELETE SET NULL
 );
 
+-- 6. DYNAMIC OTP SESSION REGISTRY (🎯 NEW: Prevents serverless RAM drops)
+CREATE TABLE IF NOT EXISTS temporary_otp_verifications (
+    email VARCHAR(100) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL,
+    student_id_number VARCHAR(50) DEFAULT NULL,
+    section_block VARCHAR(20) DEFAULT NULL,
+    otp_code VARCHAR(10) NOT NULL,
+    expires_at BIGINT NOT NULL
+);
+
 -- =========================================================================
 -- 🧪 SEED DATA GENERATION: PRE-POPULATE LIVE SYSTEM PROFILES FOR DEFENSE
 -- =========================================================================
 
--- Seed Accounts into Master Users
-INSERT INTO users (name, email, password_hash, role) VALUES
+-- Seed Accounts into Master Users (Using IGNORE to bypass duplication constraints safely)
+INSERT IGNORE INTO users (name, email, password_hash, role) VALUES
 ('System Admin', 'admin@school.edu', 'password123', 'admin'),
 ('Prof. Smith', 'faculty@school.edu', 'password123', 'faculty'),
 ('Ms. Rachel', 'librarian@school.edu', 'password123', 'library'),
@@ -69,11 +81,10 @@ INSERT INTO users (name, email, password_hash, role) VALUES
 ('Josef Anza', 'student@school.edu', 'password123', 'student');
 
 -- Connect user Josef Anza to the explicit Student profile ledger matching your frontend keys
--- (Uses LAST_INSERT_ID() to dynamically fetch Josef's auto-assigned ID safely)
-INSERT INTO students (user_id, student_id_number, section_block, qr_token_fingerprint, account_status) VALUES
+INSERT IGNORE INTO students (user_id, student_id_number, section_block, qr_token_fingerprint, account_status) VALUES
 ((SELECT id FROM users WHERE email = 'student@school.edu'), '2026-10432', 'BSIT-4A', 'STU-TOKEN-ENZO-789456', 'Clear');
 
 -- Add standard physical library books matching our active QR tracking scans
-INSERT INTO library_books (book_barcode_id, title, author, availability_status) VALUES
+INSERT IGNORE INTO library_books (book_barcode_id, title, author, availability_status) VALUES
 ('BOOK-QA-SW-444', 'Full-Stack Software Architecture', 'Robert C. Martin', 'Available'),
 ('BOOK-QA-DB-555', 'Relational Database Design Systems', 'C.J. Date', 'Available');

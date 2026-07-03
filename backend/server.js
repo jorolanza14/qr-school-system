@@ -31,19 +31,16 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// Temporary key-value store to cache metadata records during the validation step
-let temporaryVerificationStore = {};
-
 // 🌐 Baseline Health Route
 app.get('/', (req, res) => {
   res.send('QR School Management Production Database API is running cleanly...');
 });
 
 // =========================================================================
-// 🔑 AUTHENTICATION & EMAIL OTP VERIFICATION SYSTEM
+// 🔑 AUTHENTICATION & DATABASE-BACKED OTP VERIFICATION SYSTEM
 // =========================================================================
 
-// STEP A: Validate inputs, generate code, and send the email
+// STEP A: Validate inputs, generate code, and save to DB
 app.post('/api/auth/request-otp', async (req, res) => {
   const { name, email, password, role, studentId, section } = req.body;
   
@@ -51,27 +48,33 @@ app.post('/api/auth/request-otp', async (req, res) => {
     return res.status(400).json({ success: false, message: "Missing required profile parameters." });
   }
 
+  const cleanEmail = email.toLowerCase().trim();
+
   try {
     // Check if the user already exists in the real MySQL table first
-    const [existingUsers] = await db.execute('SELECT id FROM users WHERE LOWER(email) = ?', [email.toLowerCase()]);
+    const [existingUsers] = await db.execute('SELECT id FROM users WHERE LOWER(email) = ?', [cleanEmail]);
     if (existingUsers.length > 0) {
       return res.status(400).json({ success: false, message: "This email address is already registered." });
     }
 
     // Generate a clean random 6-digit number string
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 30 * 60 * 1000; // 🎯 UPDATED: Extended to 30 minutes for presentation safety
 
-    // Store registration data in system RAM temporarily, keyed by lowercased email address
-    temporaryVerificationStore[email.toLowerCase().trim()] = {
-      userData: { name, email, password, role, studentId, section },
-      otpCode,
-      expiresAt: Date.now() + 30 * 60 * 1000 // 🎯 UPDATED: Valid for 30 minutes instead of 10
-    };
+    // Save or replace the verification session entry directly inside MySQL database disk rows
+    await db.execute(`
+      INSERT INTO temporary_otp_verifications (email, name, password_hash, role, student_id_number, section_block, otp_code, expires_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE 
+        name = VALUES(name), password_hash = VALUES(password_hash), role = VALUES(role),
+        student_id_number = VALUES(student_id_number), section_block = VALUES(section_block),
+        otp_code = VALUES(otp_code), expires_at = VALUES(expires_at)
+    `, [cleanEmail, name.trim(), password, role, studentId ? studentId.trim() : null, section ? section.trim() : null, otpCode, expiresAt]);
 
-    // Dispatch the actual email payload to the user (Works with Real Emails and Yopmail!)
+    // Dispatch the actual email payload to the user
     const mailOptions = {
       from: `"QR School System" <${process.env.EMAIL_USER}>`,
-      to: email.toLowerCase().trim(),
+      to: cleanEmail,
       subject: '🏫 Verification Pass Code - QR School Management Portal',
       html: `
         <div style="font-family: sans-serif; padding: 30px; background-color: #0f172a; color: #f1f5f9; border-radius: 12px; max-width: 500px; margin: 0 auto;">
@@ -82,7 +85,7 @@ app.post('/api/auth/request-otp', async (req, res) => {
             <span style="font-size: 36px; font-weight: bold; letter-spacing: 6px; color: #4ade80;">${otpCode}</span>
           </div>
           <p style="font-size: 11px; color: #64748b; text-align: center; margin-top: 20px; border-top: 1px solid #1e293b; padding-top: 15px;">
-            This verification string expires in 10 minutes. If you did not initiate this request, you can safely ignore this email.
+            This verification string expires in 30 minutes. If you did not initiate this request, you can safely ignore this email.
           </p>
         </div>
       `
@@ -97,7 +100,7 @@ app.post('/api/auth/request-otp', async (req, res) => {
   }
 });
 
-// STEP B: Confirm the code (or master bypass code) and save to MySQL
+// STEP B: Confirm the code (or master bypass code) from DB and save to users table
 app.post('/api/auth/register', async (req, res) => {
   const { email, code } = req.body;
 
@@ -105,47 +108,50 @@ app.post('/api/auth/register', async (req, res) => {
     return res.status(400).json({ success: false, message: "Missing tracking verification arguments." });
   }
 
-  const cachedRecord = temporaryVerificationStore[email.toLowerCase().trim()];
-
-  if (!cachedRecord) {
-    return res.status(400).json({ success: false, message: "Verification session expired or missing request fields." });
-  }
-
-  if (Date.now() > cachedRecord.expiresAt) {
-    delete temporaryVerificationStore[email.toLowerCase().trim()];
-    return res.status(400).json({ success: false, message: "Verification token code has expired. Please try again." });
-  }
-
-  // Checks for the authentic sent OTP *OR* our emergency capstone defense code '999999'
-  if (cachedRecord.otpCode !== code.trim() && code.trim() !== '999999') {
-    return res.status(401).json({ success: false, message: "Incorrect security verification token pin input." });
-  }
-
-  // Verification passed! Commit records cleanly to active MySQL rows
-  const { name, password, role, studentId, section } = cachedRecord.userData;
+  const cleanEmail = email.toLowerCase().trim();
 
   try {
+    // Pull the session record from the persistent database table
+    const [rows] = await db.execute('SELECT * FROM temporary_otp_verifications WHERE email = ?', [cleanEmail]);
+    
+    if (rows.length === 0) {
+      return res.status(400).json({ success: false, message: "Verification session expired or missing request fields." });
+    }
+
+    const cachedRecord = rows[0];
+
+    if (Date.now() > cachedRecord.expires_at) {
+      await db.execute('DELETE FROM temporary_otp_verifications WHERE email = ?', [cleanEmail]);
+      return res.status(400).json({ success: false, message: "Verification token code has expired. Please try again." });
+    }
+
+    // Checks for the authentic sent OTP *OR* our emergency capstone defense code '999999'
+    if (cachedRecord.otp_code !== code.trim() && code.trim() !== '999999') {
+      return res.status(401).json({ success: false, message: "Incorrect security verification token pin input." });
+    }
+
+    // Verification passed! Commit records cleanly to active MySQL rows
     const [userResult] = await db.execute(
       'INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
-      [name.trim(), email.toLowerCase().trim(), password, role]
+      [cachedRecord.name, cleanEmail, cachedRecord.password_hash, cachedRecord.role]
     );
     const newUserId = userResult.insertId;
 
-    if (role === 'student') {
-      if (!studentId || !section) {
+    if (cachedRecord.role === 'student') {
+      if (!cachedRecord.student_id_number || !cachedRecord.section_block) {
         return res.status(400).json({ success: false, message: "Student accounts require an ID and Section config." });
       }
-      const cleanStudentToken = `STU-${studentId.trim().replace(/[^a-zA-Z0-9]/g, '')}`;
+      const cleanStudentToken = `STU-${cachedRecord.student_id_number.trim().replace(/[^a-zA-Z0-9]/g, '')}`;
       await db.execute(
         'INSERT INTO students (user_id, student_id_number, section_block, qr_token_fingerprint, account_status) VALUES (?, ?, ?, ?, ?)',
-        [newUserId, studentId.trim(), section.trim().toUpperCase(), cleanStudentToken, 'Clear']
+        [newUserId, cachedRecord.student_id_number, cachedRecord.section_block.toUpperCase(), cleanStudentToken, 'Clear']
       );
     }
 
-    // Immediately clear out the scratchpad memory block
-    delete temporaryVerificationStore[email.toLowerCase().trim()];
+    // Clean up the temporary verification table record completely
+    await db.execute('DELETE FROM temporary_otp_verifications WHERE email = ?', [cleanEmail]);
     
-    return res.status(201).json({ success: true, message: `Account successfully provisioned for ${name}!` });
+    return res.status(201).json({ success: true, message: `Account successfully provisioned for ${cachedRecord.name}!` });
   } catch (err) {
     console.error("Database registration insertion anomaly failure:", err);
     return res.status(500).json({ success: false, message: "Internal server repository registration fault." });
@@ -178,7 +184,6 @@ app.post('/api/auth/login', async (req, res) => {
 // =========================================================================
 app.get('/api/resources/list', async (req, res) => {
   try {
-    // Query persistent relational table rows on every background dashboard interval tick
     const [rows] = await db.execute(`
       SELECT id, title, professor_name as professor, file_type as type, file_size as fileSize, 
              DATE_FORMAT(date_added, "%Y-%m-%d") as dateAdded, download_url as downloadUrl 
@@ -198,12 +203,10 @@ app.post('/api/resources/upload', async (req, res) => {
     return res.status(400).json({ success: false, message: "Required file resource parameters missing." });
   }
   
-  // Compute safe presentation display variables natively
   const computedSize = `${Math.floor(1 + Math.random() * 4)}.${Math.floor(1 + Math.random() * 9)} MB`;
   const currentDateStamp = new Date().toISOString().split('T')[0];
 
   try {
-    // Commit the new resource asset straight onto your Aiven disk rows
     await db.execute(
       'INSERT INTO classroom_courseware (title, professor_name, file_type, file_size, download_url, date_added) VALUES (?, ?, ?, ?, ?, ?)',
       [title.trim(), professor || 'Faculty Member', type.toUpperCase(), computedSize, downloadUrl.trim(), currentDateStamp]
@@ -229,7 +232,6 @@ app.post('/api/resources/upload', async (req, res) => {
 app.get('/api/student/qr/:userId', async (req, res) => {
   const { userId } = req.params;
   try {
-    // 1. Fetch base profile info along with active library loans
     const profileQuery = `
       SELECT s.id AS student_table_id, s.student_id_number, s.section_block, s.qr_token_fingerprint, s.account_status, u.name,
              (SELECT COUNT(*) FROM library_books WHERE current_borrower_student_id = s.id) AS active_loans
@@ -243,7 +245,7 @@ app.get('/api/student/qr/:userId', async (req, res) => {
     }
     const profile = profileRows[0];
 
-    // 2. Compute dynamic attendance rates based on real database entries for this student
+    // Compute dynamic attendance rates based on real database entries for this student
     const attendanceQuery = `
       SELECT 
         COUNT(*) as total_logs,
@@ -256,15 +258,13 @@ app.get('/api/student/qr/:userId', async (req, res) => {
     const totalLogs = attendanceRows[0]?.total_logs || 0;
     const presentLogs = attendanceRows[0]?.present_logs || 0;
     
-    // 🎯 FIXED: If it's a new user with 0 logs, it evaluates to 0. Otherwise, computes real percentage.
+    // 🎯 FIXED: Evaluates directly to 0 if no entries exist yet, completely bypassing UI fallback values
     const calculatedAttendanceRate = totalLogs > 0 
       ? Math.round((presentLogs / totalLogs) * 100) 
       : 0;
 
-    // 3. Generate the dynamic QR image string matrix wrapper
     const qrDataUrl = await qrcode.toDataURL(profile.qr_token_fingerprint);
 
-    // Return the response structured exactly how your frontend fields expect it
     res.json({
       success: true,
       qrCodeUrl: qrDataUrl,
@@ -273,7 +273,7 @@ app.get('/api/student/qr/:userId', async (req, res) => {
       status: profile.account_status,
       name: profile.name,
       activeLoans: profile.active_loans,
-      overallAttendance: calculatedAttendanceRate // 🎯 This updates your 71% to a clean 0%!
+      overallAttendance: calculatedAttendanceRate // 🎯 Directly binds the structural metric fix
     });
   } catch (err) {
     console.error("METRICS ENGINE FAULT:", err);
