@@ -16,7 +16,7 @@ export default function StudentAttendance() {
   
   // 🔄 Combined State layer to store live data fetched from your backend endpoint
   const [studentStats, setStudentStats] = useState({ 
-    attendanceRate: 0, // 🎯 FIXED: Initialized dynamically instead of hardcoded 95%
+    attendanceRate: 0, // 🎯 FIXED: Initialized dynamically at 0%
     gateStatus: 'Clear', 
     activeLoans: 0,
     qrToken: 'Awaiting dynamic calculation...' 
@@ -40,21 +40,11 @@ export default function StudentAttendance() {
         const data = await res.json();
         
         if (data.success) {
-          // 🎯 FIXED: Maps student percentages perfectly to the Faculty Dashboard metrics grid!
-          let calculatedRate = 71; // Default fallback matching the matrix sequence
-          
-          if (data.studentId === '2026-10432') {
-            calculatedRate = 95; // Josef Anza
-          } else if (data.studentId === '2026-7878') {
-            calculatedRate = 67; // Earjen John
-          } else if (data.studentId === '2026-9898') {
-            calculatedRate = 65; // Yawn
-          }
-
           setStudentStats({
-            attendanceRate: calculatedRate, // 🎯 Dynamically computed matching value
+            // 🎯 FIXED: Pulls directly from the backend metric stream with a safe fallback to 0%
+            attendanceRate: data.overallAttendance !== undefined ? data.overallAttendance : 0, 
             gateStatus: data.status, 
-            activeLoans: 0,
+            activeLoans: data.activeLoans || 0,
             qrToken: data.studentId ? `STU-${data.studentId.replace(/[^a-zA-Z0-9]/g, '')}` : 'STU-PENDING'
           });
         }
