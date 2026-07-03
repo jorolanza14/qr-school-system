@@ -1,3 +1,18 @@
+/* =========================================================================
+   🌐 GLOBAL RE-SET OVERRIDES (Forcing Widescreen Dark Theme Containment)
+   ========================================================================= */
+html, body, #root {
+  background-color: #0f172a !important; /* 🎯 Prevents white canvas leaking on screen borders */
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+/* =========================================================================
+   🛠️ LOCAL COMPONENT UTILITY MODULE MAPS
+   ========================================================================= */
 .counter {
   font-size: 16px;
   padding: 5px 10px;

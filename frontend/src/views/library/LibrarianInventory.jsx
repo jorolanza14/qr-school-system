@@ -165,7 +165,7 @@ const styles = {
   navBtn: { background: 'none', border: 'none', color: '#94a3b8', fontSize: '14px', fontWeight: '600', cursor: 'pointer', padding: '6px 12px', borderRadius: '4px' },
   activeBtn: { backgroundColor: '#0f172a', color: '#38bdf8' },
   logoutBtn: { backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px', marginLeft: '10px' },
-  contentWrapper: { maxWidth: '1100px', margin: '0 auto', padding: '40px 20px' },
+  contentWrapper: { width: '100%', maxWidth: '96%', margin: '0 auto', padding: '40px 0px', boxSizing: 'border-box' },
   pageTitle: { fontSize: '24px', fontWeight: 'bold', color: '#fff', margin: '0 0 6px 0' },
   pageSubtitle: { color: '#94a3b8', fontSize: '14px', margin: '0' },
   layoutGrid: { display: 'flex', gap: '30px', flexWrap: 'wrap', marginTop: '25px' },
