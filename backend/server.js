@@ -351,11 +351,22 @@ app.get('/api/faculty/section/:sectionBlock', async (req, res) => {
   const { sectionBlock } = req.params;
   const upperSection = sectionBlock.trim().toUpperCase();
   try {
+    // 🎯 UPDATED: Computes structural real-time aggregates directly within SQL schema execution rows
     const rosterQuery = `
-      SELECT s.id, s.student_id_number, s.section_block, s.account_status, u.name, u.email
+      SELECT 
+        s.id, 
+        s.student_id_number, 
+        s.section_block, 
+        s.account_status, 
+        u.name, 
+        u.email,
+        COUNT(l.id) AS total_sessions,
+        SUM(CASE WHEN l.terminal_status = 'ALLOWED' THEN 1 ELSE 0 END) AS attended_sessions
       FROM students s
       JOIN users u ON s.user_id = u.id
+      LEFT JOIN gate_attendance_logs l ON l.student_id = s.id
       WHERE UPPER(s.section_block) = ?
+      GROUP BY s.id, u.id
     `;
     const [rosterRows] = await db.execute(rosterQuery, [upperSection]);
 
