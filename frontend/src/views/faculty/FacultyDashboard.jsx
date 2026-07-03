@@ -28,14 +28,17 @@ export default function FacultyDashboard() {
         
         if (data.success) {
           // Computes representation metrics safely on top of your actual real database rows
-          const structuredRoster = data.list.map((student, index) => {
-            const attendancePercentage = student.student_id_number === '2026-10432' ? 95 : Math.floor(60 + Math.random() * 35);
+          const structuredRoster = data.list.map((student) => {
+            // 🎯 FIXED: Pull real metrics from database fields if present, otherwise default to a clean 0 base layer
+            const attended = student.attended_sessions || 0;
+            const total = student.total_sessions || 0;
+            const rate = total > 0 ? Math.round((attended / total) * 100) : 0;
+
             return {
               ...student,
-              attendanceRate: attendancePercentage,
-              totalSessions: 12,
-              attendedSessions: Math.round((attendancePercentage / 100) * 12),
-              lastActive: index % 2 === 0 ? 'Today, 08:14 AM' : 'Yesterday'
+              attendanceRate: rate,
+              totalSessions: total,
+              attendedSessions: attended
             };
           });
 
@@ -117,7 +120,6 @@ export default function FacultyDashboard() {
 
       {/* KPI Stats Analytics Cards Row */}
       <section style={styles.gridStats}>
-        {/* 🎯 FIXED: Evaluates local loading states cleanly instead of nonexistent style parameters */}
         <div style={styles.statCard}><h3>Total Class Roster</h3><p style={styles.statNumber}>{loading ? '...' : stats.totalEnrolled}</p><span>Enrolled Students</span></div>
         <div style={styles.statCard}><h3 style={{ color: '#4ade80' }}>Verified In-Class Today</h3><p style={{ ...styles.statNumber, color: '#4ade80' }}>{stats.presentToday}</p><span>Scanned via QR Code</span></div>
         <div style={styles.statCard}><h3 style={{ color: '#60a5fa' }}>Average Attendance</h3><p style={{ ...styles.statNumber, color: '#60a5fa' }}>{stats.attendanceRate}%</p><span>Term Performance Rate</span></div>
