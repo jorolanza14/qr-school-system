@@ -180,7 +180,7 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // =========================================================================
-// 📁 CENTRALIZED ACADEMIC CLASSROOM RESOURCES MATRIX (🎯 DATABASE PERSISTENT FIXED)
+// 📁 CENTRALIZED ACADEMIC CLASSROOM RESOURCES MATRIX
 // =========================================================================
 app.get('/api/resources/list', async (req, res) => {
   try {
@@ -227,7 +227,7 @@ app.post('/api/resources/upload', async (req, res) => {
 });
 
 // =========================================================================
-// 📱 2. SECURE STUDENT QR CARD ENDPOINT (🎯 METRICS CALCULATION FIXED)
+// 📱 2. SECURE STUDENT QR CARD ENDPOINT
 // =========================================================================
 app.get('/api/student/qr/:userId', async (req, res) => {
   const { userId } = req.params;
@@ -258,7 +258,6 @@ app.get('/api/student/qr/:userId', async (req, res) => {
     const totalLogs = attendanceRows[0]?.total_logs || 0;
     const presentLogs = attendanceRows[0]?.present_logs || 0;
     
-    // 🎯 FIXED: Evaluates directly to 0 if no entries exist yet, completely bypassing UI fallback values
     const calculatedAttendanceRate = totalLogs > 0 
       ? Math.round((presentLogs / totalLogs) * 100) 
       : 0;
@@ -273,7 +272,7 @@ app.get('/api/student/qr/:userId', async (req, res) => {
       status: profile.account_status,
       name: profile.name,
       activeLoans: profile.active_loans,
-      overallAttendance: calculatedAttendanceRate // 🎯 Directly binds the structural metric fix
+      overallAttendance: calculatedAttendanceRate
     });
   } catch (err) {
     console.error("METRICS ENGINE FAULT:", err);
@@ -351,7 +350,6 @@ app.get('/api/faculty/section/:sectionBlock', async (req, res) => {
   const { sectionBlock } = req.params;
   const upperSection = sectionBlock.trim().toUpperCase();
   try {
-    // 🎯 UPDATED: Computes structural real-time aggregates directly within SQL schema execution rows
     const rosterQuery = `
       SELECT 
         s.id, 
@@ -472,7 +470,6 @@ app.post('/api/security/scan', async (req, res) => {
 // =========================================================================
 app.get('/api/library/books', async (req, res) => {
   try {
-    // 🎯 FIXED: Explicit table qualifiers resolve ambiguity in shared identity columns
     const query = `
       SELECT 
         b.book_barcode_id, 
@@ -516,12 +513,12 @@ app.post('/api/library/add-book', async (req, res) => {
       return res.status(400).json({ success: false, message: "Barcode asset already cataloged." });
     }
 
+    // 🎯 FIXED: Escaped single quotes resolve ANSI_QUOTES mode interpretation constraints
     await db.execute(
       'INSERT INTO library_books (book_barcode_id, title, author, availability_status) VALUES (?, ?, ?, \'Available\')',
       [cleanBarcode, title.trim(), author ? author.trim() : 'Unknown Author']
     );
 
-    // 🎯 FIXED: Enforced explicit row parameter selections to eliminate column collisions during map aggregation returns
     const [freshRows] = await db.execute(`
       SELECT 
         b.book_barcode_id, 
@@ -548,7 +545,6 @@ app.post('/api/library/add-book', async (req, res) => {
     res.json({ success: true, message: `Asset registered successfully!`, inventory: catalogLedger });
   } catch (err) {
     console.error(err);
-    // 🎯 FIXED: Sends the exact database error back to the frontend UI instead of the hardcoded string
     return res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -588,6 +584,70 @@ app.post('/api/library/checkout', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: "Library engine checkout transaction fault." });
+  }
+});
+
+// =========================================================================
+// 🗓️ CAMPUS ANNOUNCEMENTS & BULLETIN BROADCASTER ENDPOINTS
+// =========================================================================
+app.get('/api/student/events-list', async (req, res) => {
+  try {
+    const [rows] = await db.execute(`
+      SELECT 
+        id, 
+        title, 
+        DATE_FORMAT(event_date, '%Y-%m-%d') as date, 
+        event_time as time, 
+        location, 
+        organizer, 
+        description as \`desc\`
+      FROM campus_announcements 
+      ORDER BY id DESC
+    `);
+    return res.json({ success: true, list: rows });
+  } catch (err) {
+    console.error("Fetch events error:", err);
+    return res.status(500).json({ success: false, message: "Database failure reading announcement lines." });
+  }
+});
+
+app.post('/api/admin/add-event', async (req, res) => {
+  const { title, date, time, location, organizer, desc } = req.body;
+  
+  if (!title || !date || !location) {
+    return res.status(400).json({ success: false, message: "Missing required announcement parameters." });
+  }
+
+  try {
+    await db.execute(
+      'INSERT INTO campus_announcements (title, event_date, event_time, location, organizer, description) VALUES (?, ?, ?, ?, ?, ?)',
+      [
+        title.trim(), 
+        date, 
+        time ? time.trim() : 'All Day', 
+        location.trim(), 
+        organizer ? organizer.trim() : 'Admin Office', 
+        desc ? desc.trim() : ''
+      ]
+    );
+
+    const [freshRows] = await db.execute(`
+      SELECT 
+        id, 
+        title, 
+        DATE_FORMAT(event_date, '%Y-%m-%d') as date, 
+        event_time as time, 
+        location, 
+        organizer, 
+        description as \`desc\`
+      FROM campus_announcements 
+      ORDER BY id DESC
+    `);
+
+    return res.json({ success: true, message: "Notice successfully broadcasted!", list: freshRows });
+  } catch (err) {
+    console.error("Publish event error:", err);
+    return res.status(500).json({ success: false, message: err.message });
   }
 });
 
