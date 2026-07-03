@@ -96,156 +96,159 @@ export default function FacultyDashboard() {
 
   return (
     <div style={styles.container}>
-      {/* Upper Navigation Row Header */}
-      <header style={styles.header}>
-        <div>
-          <h1 style={styles.title}>👨‍🏫 Faculty Command & Analytics Console</h1>
-          <p style={styles.subtitle}>Welcome Back, <span style={{ color: '#a78bfa' }}>{professorName}</span>. Academic monitoring pathways are live.</p>
+      <div style={styles.contentWrapper}>
+        {/* Upper Navigation Row Header */}
+        <header style={styles.header}>
+          <div>
+            <h1 style={styles.title}>👨‍🏫 Faculty Command & Analytics Console</h1>
+            <p style={styles.subtitle}>Welcome Back, <span style={{ color: '#a78bfa' }}>{professorName}</span>. Academic monitoring pathways are live.</p>
+          </div>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button onClick={() => navigate('/faculty/attendance')} style={styles.tokenBtn}>⏱️ Launch Token Generator</button>
+            <button onClick={() => navigate('/')} style={styles.logoutBtn}>Sign Out</button>
+          </div>
+        </header>
+
+        {/* Roster Filter Control Module Row */}
+        <div style={styles.filterBar}>
+          <label style={styles.filterLabel}>Active Class Section Portal:</label>
+          <select value={selectedSection} onChange={(e) => setSelectedSection(e.target.value)} style={styles.selectInput}>
+            <option value="BSIT-4A">BSIT - 4A (Information Technology)</option>
+            <option value="BSIT-4B">BSIT - 4B (Information Technology)</option>
+            <option value="BSIT-3A">BSIT - 3A (Information Technology)</option>
+          </select>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button onClick={() => navigate('/faculty/attendance')} style={styles.tokenBtn}>⏱️ Launch Token Generator</button>
-          <button onClick={() => navigate('/')} style={styles.logoutBtn}>Sign Out</button>
-        </div>
-      </header>
 
-      {/* Roster Filter Control Module Row */}
-      <div style={styles.filterBar}>
-        <label style={styles.filterLabel}>Active Class Section Portal:</label>
-        <select value={selectedSection} onChange={(e) => setSelectedSection(e.target.value)} style={styles.selectInput}>
-          <option value="BSIT-4A">BSIT - 4A (Information Technology)</option>
-          <option value="BSIT-4B">BSIT - 4B (Information Technology)</option>
-          <option value="BSIT-3A">BSIT - 3A (Information Technology)</option>
-        </select>
-      </div>
+        {/* KPI Stats Analytics Cards Row */}
+        <section style={styles.gridStats}>
+          <div style={styles.statCard}><h3>Total Class Roster</h3><p style={styles.statNumber}>{loading ? '...' : stats.totalEnrolled}</p><span>Enrolled Students</span></div>
+          <div style={styles.statCard}><h3 style={{ color: '#4ade80' }}>Verified In-Class Today</h3><p style={{ ...styles.statNumber, color: '#4ade80' }}>{stats.presentToday}</p><span>Scanned via QR Code</span></div>
+          <div style={styles.statCard}><h3 style={{ color: '#60a5fa' }}>Average Attendance</h3><p style={{ ...styles.statNumber, color: '#60a5fa' }}>{stats.attendanceRate}%</p><span>Term Performance Rate</span></div>
+          <div style={styles.statCard}><h3 style={{ color: '#f87171' }}>At-Risk Profiles</h3><p style={{ ...styles.statNumber, color: '#f87171' }}>{stats.warningCount}</p><span>Low Progress / System Holds</span></div>
+        </section>
 
-      {/* KPI Stats Analytics Cards Row */}
-      <section style={styles.gridStats}>
-        <div style={styles.statCard}><h3>Total Class Roster</h3><p style={styles.statNumber}>{loading ? '...' : stats.totalEnrolled}</p><span>Enrolled Students</span></div>
-        <div style={styles.statCard}><h3 style={{ color: '#4ade80' }}>Verified In-Class Today</h3><p style={{ ...styles.statNumber, color: '#4ade80' }}>{stats.presentToday}</p><span>Scanned via QR Code</span></div>
-        <div style={styles.statCard}><h3 style={{ color: '#60a5fa' }}>Average Attendance</h3><p style={{ ...styles.statNumber, color: '#60a5fa' }}>{stats.attendanceRate}%</p><span>Term Performance Rate</span></div>
-        <div style={styles.statCard}><h3 style={{ color: '#f87171' }}>At-Risk Profiles</h3><p style={{ ...styles.statNumber, color: '#f87171' }}>{stats.warningCount}</p><span>Low Progress / System Holds</span></div>
-      </section>
-
-      {/* Layout Workspace Dual Split Block */}
-      <div style={styles.splitRow}>
-        
-        {/* Workspace Column Left: Dynamic Progress Table Card */}
-        <div style={{ flex: '2', minWidth: '450px' }}>
-          <h2 style={styles.sectionHeaderTitle}>📋 Student Tracking Matrix: {selectedSection}</h2>
-          {loading ? (
-            <p style={{ color: '#94a3b8', marginTop: '20px' }}>Syncing student performance vectors...</p>
-          ) : roster.length === 0 ? (
-            <div style={styles.emptyCard}>No students are currently registered in Section {selectedSection} inside the database.</div>
-          ) : (
-            <div style={styles.tableCard}>
-              <table style={styles.table}>
-                <thead>
-                  <tr style={styles.thRow}>
-                    <th style={styles.th}>Student Profile</th>
-                    <th style={styles.th}>ID Code</th>
-                    <th style={styles.th}>Attendance Progress Bar</th>
-                    <th style={styles.th}>Sessions</th>
-                    <th style={styles.th}>System Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {roster.map((student) => (
-                    <tr key={student.id} style={styles.trRow}>
-                      <td style={styles.td}><strong>{student.name}</strong></td>
-                      <td style={styles.td}><code style={styles.code}>{student.student_id_number}</code></td>
-                      <td style={styles.td}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <div style={styles.progressTrack}>
-                            <div style={{ 
-                              ...styles.progressBar, 
-                              width: `${student.attendanceRate}%`,
-                              backgroundColor: student.attendanceRate >= 85 ? '#16a34a' : student.attendanceRate >= 75 ? '#eab308' : '#dc2626'
-                            }} />
-                          </div>
-                          <span style={{ fontSize: '13px', fontWeight: 'bold' }}>{student.attendanceRate}%</span>
-                        </div>
-                      </td>
-                      <td style={styles.td}>{student.attendedSessions}/{student.totalSessions}</td>
-                      <td style={styles.td}>
-                        <span style={{
-                          ...styles.badge,
-                          backgroundColor: student.account_status === 'Clear' ? 'rgba(22, 163, 74, 0.15)' : 'rgba(220, 38, 38, 0.15)',
-                          color: student.account_status === 'Clear' ? '#4ade80' : '#f87171'
-                        }}>
-                          {student.account_status === 'Clear' ? 'Active' : 'Hold'}
-                        </span>
-                      </td>
+        {/* Layout Workspace Dual Split Block */}
+        <div style={styles.splitRow}>
+          
+          {/* Workspace Column Left: Dynamic Progress Table Card */}
+          <div style={{ flex: '2', minWidth: '450px', width: '100%' }}>
+            <h2 style={styles.sectionHeaderTitle}>📋 Student Tracking Matrix: {selectedSection}</h2>
+            {loading ? (
+              <p style={{ color: '#94a3b8', marginTop: '20px' }}>Syncing student performance vectors...</p>
+            ) : roster.length === 0 ? (
+              <div style={styles.emptyCard}>No students are currently registered in Section {selectedSection} inside the database.</div>
+            ) : (
+              <div style={styles.tableCard}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr style={styles.thRow}>
+                      <th style={styles.th}>Student Profile</th>
+                      <th style={styles.th}>ID Code</th>
+                      <th style={styles.th}>Attendance Progress Bar</th>
+                      <th style={styles.th}>Sessions</th>
+                      <th style={styles.th}>System Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* Workspace Column Right: New Classroom File Resource Upload Panel Card Component */}
-        <div style={{ flex: '1', minWidth: '320px' }}>
-          <h2 style={styles.sectionHeaderTitle}>📤 Dispatch Digital Courseware</h2>
-          <div style={styles.uploadCard}>
-            <form onSubmit={handleResourceUpload} style={styles.uploadForm}>
-              <div style={styles.formGroup}>
-                <label style={styles.formLabelText}>Resource Document Title Name:</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g., Lecture Note 03 - Database Architecture" 
-                  value={uploadForm.title} 
-                  onChange={e => setUploadForm({...uploadForm, title: e.target.value})} 
-                  style={styles.formInputBox} 
-                  required 
-                />
+                  </thead>
+                  <tbody>
+                    {roster.map((student) => (
+                      <tr key={student.id} style={styles.trRow}>
+                        <td style={styles.td}><strong>{student.name}</strong></td>
+                        <td style={styles.td}><code style={styles.code}>{student.student_id_number}</code></td>
+                        <td style={styles.td}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={styles.progressTrack}>
+                              <div style={{ 
+                                ...styles.progressBar, 
+                                width: `${student.attendanceRate}%`,
+                                backgroundColor: student.attendanceRate >= 85 ? '#16a34a' : student.attendanceRate >= 75 ? '#eab308' : '#dc2626'
+                              }} />
+                            </div>
+                            <span style={{ fontSize: '13px', fontWeight: 'bold' }}>{student.attendanceRate}%</span>
+                          </div>
+                        </td>
+                        <td style={styles.td}>{student.attendedSessions}/{student.totalSessions}</td>
+                        <td style={styles.td}>
+                          <span style={{
+                            ...styles.badge,
+                            backgroundColor: student.account_status === 'Clear' ? 'rgba(22, 163, 74, 0.15)' : 'rgba(220, 38, 38, 0.15)',
+                            color: student.account_status === 'Clear' ? '#4ade80' : '#f87171'
+                          }}>
+                            {student.account_status === 'Clear' ? 'Active' : 'Hold'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.formLabelText}>File Extension Suffix Group:</label>
-                <select 
-                  value={uploadForm.type} 
-                  onChange={e => setUploadForm({...uploadForm, type: e.target.value})} 
-                  style={styles.formSelectBox}
-                >
-                  <option value="PDF">PDF (Portable Document File)</option>
-                  <option value="DOCX">DOCX (Microsoft Word Artifact)</option>
-                  <option value="PPTX">PPTX (Powerpoint Presentation Vector)</option>
-                </select>
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.formLabelText}>Asset Storage Download URL Route Link:</label>
-                <input 
-                  type="url" 
-                  placeholder="https://example-school-bucket.s3.amazonaws.com/notes.pdf" 
-                  value={uploadForm.downloadUrl} 
-                  onChange={e => setUploadForm({...uploadForm, downloadUrl: e.target.value})} 
-                  style={styles.formInputBox} 
-                  required 
-                />
-              </div>
-
-              <button type="submit" style={styles.submitUploadBtn}>Publish Courseware Asset</button>
-            </form>
-            
-            {uploadFeedback && (
-              <div style={{
-                ...styles.feedbackAlert,
-                backgroundColor: uploadFeedback.startsWith('🎉') ? 'rgba(22, 163, 74, 0.15)' : 'rgba(220, 38, 38, 0.15)',
-                color: uploadFeedback.startsWith('🎉') ? '#4ade80' : '#f87171',
-                border: uploadFeedback.startsWith('🎉') ? '1px solid #16a34a' : '1px solid #dc2626'
-              }}>{uploadFeedback}</div>
             )}
           </div>
-        </div>
 
+          {/* Workspace Column Right: New Classroom File Resource Upload Panel Card Component */}
+          <div style={{ flex: '1', minWidth: '320px', width: '100%' }}>
+            <h2 style={styles.sectionHeaderTitle}>📤 Dispatch Digital Courseware</h2>
+            <div style={styles.uploadCard}>
+              <form onSubmit={handleResourceUpload} style={styles.uploadForm}>
+                <div style={styles.formGroup}>
+                  <label style={styles.formLabelText}>Resource Document Title Name:</label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g., Lecture Note 03 - Database Architecture" 
+                    value={uploadForm.title} 
+                    onChange={e => setUploadForm({...uploadForm, title: e.target.value})} 
+                    style={styles.formInputBox} 
+                    required 
+                  />
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.formLabelText}>File Extension Suffix Group:</label>
+                  <select 
+                    value={uploadForm.type} 
+                    onChange={e => setUploadForm({...uploadForm, type: e.target.value})} 
+                    style={styles.formSelectBox}
+                  >
+                    <option value="PDF">PDF (Portable Document File)</option>
+                    <option value="DOCX">DOCX (Microsoft Word Artifact)</option>
+                    <option value="PPTX">PPTX (Powerpoint Presentation Vector)</option>
+                  </select>
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.formLabelText}>Asset Storage Download URL Route Link:</label>
+                  <input 
+                    type="url" 
+                    placeholder="https://example-school-bucket.s3.amazonaws.com/notes.pdf" 
+                    value={uploadForm.downloadUrl} 
+                    onChange={e => setUploadForm({...uploadForm, downloadUrl: e.target.value})} 
+                    style={styles.formInputBox} 
+                    required 
+                  />
+                </div>
+
+                <button type="submit" style={styles.submitUploadBtn}>Publish Courseware Asset</button>
+              </form>
+              
+              {uploadFeedback && (
+                <div style={{
+                  ...styles.feedbackAlert,
+                  backgroundColor: uploadFeedback.startsWith('🎉') ? 'rgba(22, 163, 74, 0.15)' : 'rgba(220, 38, 38, 0.15)',
+                  color: uploadFeedback.startsWith('🎉') ? '#4ade80' : '#f87171',
+                  border: uploadFeedback.startsWith('🎉') ? '1px solid #16a34a' : '1px solid #dc2626'
+                }}>{uploadFeedback}</div>
+              )}
+            </div>
+          </div>
+
+        </div>
       </div>
     </div>
   );
 }
 
 const styles = {
-  container: { minHeight: '100vh', backgroundColor: '#0f172a', padding: '40px 50px', fontFamily: 'sans-serif', color: '#f1f5f9', boxSizing: 'border-box' },
+  container: { minHeight: '100vh', backgroundColor: '#0f172a', fontFamily: 'sans-serif', color: '#f1f5f9', boxSizing: 'border-box' },
+  contentWrapper: { width: '100%', maxWidth: '96%', margin: '0 auto', padding: '40px 0px', boxSizing: 'border-box' }, // 🎯 FIXED: Fluid screen wrapper
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '24px', marginBottom: '30px' },
   title: { color: '#fff', margin: '0 0 6px 0', fontSize: '26px', fontWeight: 'bold' },
   subtitle: { color: '#94a3b8', margin: '0', fontSize: '14px' },

@@ -70,9 +70,11 @@ export default function StudentEvents() {
 const styles = {
   container: { minHeight: '100vh', backgroundColor: '#0f172a', color: '#f1f5f9', fontFamily: 'sans-serif' },
   contentWrapper: { 
-    padding: '40px', 
-    maxWidth: '1200px', 
+    width: '100%', 
+    maxWidth: '96%', // 🎯 FIXED: Replaced 1200px constraint with fluid full screen viewport limits
     margin: '0 auto',
+    padding: '40px 0px', 
+    boxSizing: 'border-box',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center'
@@ -86,11 +88,11 @@ const styles = {
     width: '100%',
     alignItems: 'center'
   },
-  eventCard: { padding: '25px', background: '#1e293b', borderRadius: '12px', border: '1px solid #334155', width: '100%', maxWidth: '750px', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' },
+  eventCard: { padding: '25px', background: '#1e293b', borderRadius: '12px', border: '1px solid #334155', width: '100%', maxWidth: '100%', boxSizing: 'border-box', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }, // 🎯 FIXED: Card stretches to matching wide margins fluidly
   badge: { background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', border: '1px solid #f59e0b', letterSpacing: '0.5px', display: 'inline-block' },
   eventTitle: { margin: '15px 0 6px 0', color: '#fff', fontSize: '18px', fontWeight: 'bold' },
   metaRow: { margin: '0 0 15px 0', fontSize: '13px', color: '#94a3b8', display: 'flex', flexWrap: 'wrap', gap: '4px' },
   metaItem: { color: '#94a3b8' },
   eventDesc: { fontSize: '14px', color: '#cbd5e1', lineHeight: '1.6', margin: '0' },
-  emptyNotice: { color: '#64748b', fontStyle: 'italic', padding: '20px', backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', textAlign: 'center', width: '100%', maxWidth: '750px' }
+  emptyNotice: { color: '#64748b', fontStyle: 'italic', padding: '20px', backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', textAlign: 'center', width: '100%' }
 };

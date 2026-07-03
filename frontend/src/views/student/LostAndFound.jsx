@@ -218,7 +218,7 @@ export default function LostAndFound() {
 
 const styles = {
   container: { minHeight: '100vh', backgroundColor: '#0f172a', fontFamily: 'sans-serif', color: '#f1f5f9' },
-  contentWrapper: { maxWidth: '1200px', margin: '0 auto', padding: '40px 20px' },
+  contentWrapper: { width: '100%', maxWidth: '96%', margin: '0 auto', padding: '40px 0px', boxSizing: 'border-box' },
   headerSection: { marginBottom: '35px' },
   pageTitle: { fontSize: '24px', fontWeight: 'bold', color: '#fff', margin: '0 0 8px 0' },
   pageSubtitle: { color: '#94a3b8', fontSize: '14px', lineHeight: '1.5', margin: '0' },

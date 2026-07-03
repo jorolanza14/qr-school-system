@@ -267,8 +267,7 @@ export default function StudentAttendance() {
 
 const styles = {
   container: { minHeight: '100vh', backgroundColor: '#0f172a', fontFamily: 'sans-serif', color: '#f1f5f9' },
-  contentWrapper: { maxWidth: '1100px', margin: '0 auto', padding: '40px 20px' },
-  gridStats: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '40px' },
+  contentWrapper: { width: '100%', maxWidth: '96%', margin: '0 auto', padding: '40px 0px', boxSizing: 'border-box' },
   statCard: { backgroundColor: '#1e293b', padding: '24px', borderRadius: '12px', border: '1px solid #334155', color: '#94a3b8' },
   statNumber: { fontSize: '32px', fontWeight: 'bold', margin: '10px 0 4px 0' },
   workspaceGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '30px' },
