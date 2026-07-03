@@ -18,6 +18,9 @@ export default function AdminDashboard() {
   const [newEvent, setNewEvent] = useState({ title: '', date: '', time: '', location: '', organizer: 'Admin Office', desc: '' });
   const [eventFeedback, setEventFeedback] = useState('');
 
+  // 🔍 Lost & Found State Layer
+  const [lostItems, setLostItems] = useState([]);
+
   // 🔄 Synchronization Engine: Fetch and pull metrics + accounts from production server
   const fetchSystemTelemetry = async () => {
     try {
@@ -49,15 +52,31 @@ export default function AdminDashboard() {
     }
   };
 
+  // 🔍 Fetch active Lost & Found items
+  const fetchLostAndFoundItems = async () => {
+    try {
+      const baseUrl = 'https://qr-school-system-7fp2.vercel.app';
+      const res = await fetch(`${baseUrl}/api/lost-found/list`);
+      const data = await res.json();
+      if (data.success) {
+        setLostItems(data.list);
+      }
+    } catch (err) {
+      console.error("Lost & Found panel synchronization error:", err);
+    }
+  };
+
   // Setup live background loop hooks to sync cross-browser edits immediately
   useEffect(() => {
     fetchSystemTelemetry();
     fetchLiveEventsList();
+    fetchLostAndFoundItems();
     
     // Ticks every 3 seconds so dashboard telemetry mirrors live user traffic
     const backgroundSyncInterval = setInterval(() => {
       fetchSystemTelemetry();
       fetchLiveEventsList();
+      fetchLostAndFoundItems();
     }, 3000);
     
     return () => clearInterval(backgroundSyncInterval);
@@ -111,6 +130,26 @@ export default function AdminDashboard() {
     }
   };
 
+  // 🤝 Process Lost Item Handover Claim States
+  const handleToggleItemClaimStatus = async (itemId, currentStatus) => {
+    try {
+      const baseUrl = 'https://qr-school-system-7fp2.vercel.app';
+      const nextStatus = currentStatus === 'Unclaimed' ? 'Claimed' : 'Unclaimed';
+
+      const response = await fetch(`${baseUrl}/api/lost-found/toggle-claim`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId, nextStatus })
+      });
+
+      if (response.ok) {
+        fetchLostAndFoundItems();
+      }
+    } catch (err) {
+      console.error("Failed to re-write asset resolution parameters:", err);
+    }
+  };
+
   return (
     <div style={styles.container}>
       {/* 🧭 Top Master Control Navbar */}
@@ -129,6 +168,7 @@ export default function AdminDashboard() {
           <button onClick={() => setActiveTab('overview')} style={{ ...styles.sidebarLink, ...(activeTab === 'overview' ? styles.activeLink : {}) }}>📊 Analytics Overview</button>
           <button onClick={() => setActiveTab('users')} style={{ ...styles.sidebarLink, ...(activeTab === 'users' ? styles.activeLink : {}) }}>👥 User Account Control</button>
           <button onClick={() => setActiveTab('events')} style={{ ...styles.sidebarLink, ...(activeTab === 'events' ? styles.activeLink : {}) }}>📣 Event Broadcaster</button>
+          <button onClick={() => setActiveTab('lostfound')} style={{ ...styles.sidebarLink, ...(activeTab === 'lostfound' ? styles.activeLink : {}) }}>🕵️‍♂️ Lost & Found Desk</button>
           
           <div style={{ ...styles.menuLabel, marginTop: '20px' }}>CROSS-PORTAL DIRECT ACCESSS</div>
           <button onClick={() => navigate('/faculty')} style={styles.sidebarLink}>👨‍🏫 Launch Faculty Suite</button>
@@ -147,7 +187,6 @@ export default function AdminDashboard() {
               <p style={styles.pageSubtitle}>Real-time telemetry from across the registered system database frameworks.</p>
               
               <section style={styles.statsGrid}>
-                {/* 🎯 FIXED: Pulls dynamic real counts directly from database metadata counts */}
                 <div style={styles.statCard}><h3>Active Registered Accounts</h3><p style={{ ...styles.statNum, color: '#38bdf8' }}>{loading ? '...' : telemetry.totalUsers}</p><span>Across 5 system roles</span></div>
                 <div style={styles.statCard}><h3>Total Live Events Bulletin</h3><p style={{ ...styles.statNum, color: '#4ade80' }}>{events.length}</p><span>Active scheduling lines</span></div>
                 <div style={styles.statCard}><h3>Terminal Gate Swipes</h3><p style={{ ...styles.statNum, color: '#f59e0b' }}>{loading ? '...' : telemetry.totalSwipes}</p><span>Synced with Security Index</span></div>
@@ -267,6 +306,71 @@ export default function AdminDashboard() {
                     ))}
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* ==========================================
+              TAB 4: CAMPUS PROPERTY CUSTODIAN DESK
+             ========================================== */}
+          {activeTab === 'lostfound' && (
+            <div>
+              <h2 style={styles.pageTitle}>Property Custodian Turn-in Ledger</h2>
+              <p style={styles.pageSubtitle}>Review dynamic student surrender broadcasts and claim validations.</p>
+              
+              <div style={{ ...styles.card, height: 'auto', width: '100%', overflowY: 'auto' }}>
+                <h3 style={styles.cardHeader}>📦 Surrendered Assets Ledger Inventory</h3>
+                <table style={styles.table}>
+                  <thead>
+                    <tr style={styles.thRow}>
+                      <th style={styles.th}>Tracking Code</th>
+                      <th style={styles.th}>Asset Item</th>
+                      <th style={styles.th}>Classification</th>
+                      <th style={styles.th}>Location Found</th>
+                      <th style={styles.th}>Status Badge</th>
+                      <th style={styles.th}>Action Link</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lostItems.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" style={{ ...styles.tdText, textAlign: 'center', color: '#64748b', fontStyle: 'italic', padding: '24px' }}>
+                          No surrendered logs reported on system notice matrices.
+                        </td>
+                      </tr>
+                    ) : (
+                      lostItems.map(item => (
+                        <tr key={item.id} style={styles.tdRow}>
+                          <td style={{ ...styles.tdText, fontFamily: 'monospace', color: '#38bdf8', fontWeight: 'bold' }}>{item.tracking_tag_id}</td>
+                          <td style={styles.tdName}>{item.item_name}</td>
+                          <td style={styles.tdText}>{item.category_classification}</td>
+                          <td style={styles.tdText}>📍 {item.location_found}</td>
+                          <td style={styles.tdText}>
+                            <span style={{
+                              ...styles.roleBadge,
+                              backgroundColor: item.item_status === 'Unclaimed' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(74, 222, 128, 0.15)',
+                              color: item.item_status === 'Unclaimed' ? '#f59e0b' : '#44ade80',
+                              border: item.item_status === 'Unclaimed' ? '1px solid #f59e0b' : '1px solid #16a34a'
+                            }}>
+                              {item.item_status.toUpperCase()}
+                            </span>
+                          </td>
+                          <td style={styles.tdText}>
+                            <button 
+                              onClick={() => handleToggleItemClaimStatus(item.id, item.item_status)} 
+                              style={{
+                                ...styles.actionBtn,
+                                backgroundColor: item.item_status === 'Unclaimed' ? '#16a34a' : '#475569'
+                              }}
+                            >
+                              {item.item_status === 'Unclaimed' ? 'Mark As Claimed' : 'Reopen Record'}
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
