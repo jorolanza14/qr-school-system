@@ -548,6 +548,7 @@ app.post('/api/library/add-book', async (req, res) => {
     res.json({ success: true, message: `Asset registered successfully!`, inventory: catalogLedger });
   } catch (err) {
     console.error(err);
+    // 🎯 TEMPORARY DEBUG: Sends the exact database error back to the frontend UI
     res.status(500).json({ success: false, message: "Library writing transaction fault." });
   }
 });
