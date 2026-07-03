@@ -114,9 +114,9 @@ export default function LibrarianInventory() {
           <p style={styles.subtitle}>Operator Mode: <span style={{ color: '#38bdf8' }}>{librarianName}</span></p>
         </div>
         <div style={styles.navActionRow}>
-          <button onClick={() => setActiveTab('database')} style={{ ...styles.toggleTabBtn, ...(activeTab === 'database' ? styles.activeTab : {}) }}>Digital Database</button>
-          <button onClick={() => setActiveTab('checkout')} style={{ ...styles.toggleTabBtn, ...(activeTab === 'checkout' ? styles.activeTab : {}) }}>View Asset Logs</button>
-          <button onClick={() => { localStorage.clear(); navigate('/'); }} style={styles.logoutBtn}>Logout</button>
+          <button type="button" onClick={() => setActiveTab('database')} style={{ ...styles.toggleTabBtn, ...(activeTab === 'database' ? styles.activeTab : {}) }}>Digital Database</button>
+          <button type="button" onClick={() => setActiveTab('checkout')} style={{ ...styles.toggleTabBtn, ...(activeTab === 'checkout' ? styles.activeTab : {}) }}>View Asset Logs</button>
+          <button type="button" onClick={() => { localStorage.clear(); navigate('/'); }} style={styles.logoutBtn}>Logout</button>
         </div>
       </header>
 
@@ -249,7 +249,7 @@ const styles = {
     fontFamily: 'sans-serif', 
     color: '#f1f5f9', 
     boxSizing: 'border-box',
-    paddingBottom: '120px' // 🎯 FIXED: Forces safety canvas bottom spacing to eliminate fixed mobile browser tray collisions
+    paddingBottom: '120px'
   },
   contentWrapper: { 
     width: '100%', 
@@ -267,25 +267,25 @@ const styles = {
     borderBottom: '1px solid #334155', 
     boxShadow: '0 4px 6px -1px rgba(0,0,0,0.2)',
     flexWrap: 'wrap', 
-    gap: '15px' 
+    gap: '15px',
+    width: '100%',
+    boxSizing: 'border-box'
   },
   title: { color: '#fff', margin: '0', fontSize: '20px', fontWeight: 'bold' },
   subtitle: { color: '#94a3b8', margin: '4px 0 0 0', fontSize: '13px' },
   navActionRow: { display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' },
-  toggleTabBtn: { padding: '6px 12px', background: 'rgba(15, 23, 42, 0.4)', color: '#94a3b8', border: '1px solid #334155', borderRadius: '4px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' },
+  toggleTabBtn: { padding: '8px 14px', background: 'rgba(15, 23, 42, 0.4)', color: '#cbd5e1', border: '1px solid #334155', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold', outline: 'none', transition: 'all 0.2s' },
   activeTab: { backgroundColor: '#0f172a', color: '#38bdf8', borderColor: '#38bdf8' },
-  logoutBtn: { backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' },
+  logoutBtn: { backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' },
   
-  // Responsive Dual Columns Form Layout Grid
   tabGridBody: { display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '25px', width: '100%', alignItems: 'start', boxSizing: 'border-box' },
   card: { backgroundColor: '#1e293b', padding: '24px', borderRadius: '12px', border: '1px solid #334155', flex: '1 1 320px', width: '100%', boxSizing: 'border-box', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)' },
   cardFullScreenMobile: { backgroundColor: '#1e293b', padding: '24px', borderRadius: '12px', border: '1px solid #334155', width: '100%', boxSizing: 'border-box', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)' },
   
-  // 🎯 FIXED: Scroll protection rules for tables on narrow phone layouts
   tableCardOuterWrapper: { backgroundColor: '#1e293b', padding: '24px', borderRadius: '12px', border: '1px solid #334155', flex: '2 1 450px', width: '100%', boxSizing: 'border-box', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)' },
   horizontalScrollTableContainer: { width: '100%', overflowX: 'auto', boxSizing: 'border-box', marginTop: '10px' },
   
-  table: { width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '550px' }, // 🎯 FIXED: Locks internal min-width so cell layout parameters wrap text beautifully instead of squeezing columns
+  table: { width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '550px' },
   thRow: { borderBottom: '2px solid #334155' },
   th: { padding: '10px 12px', color: '#64748b', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' },
   tdRow: { borderBottom: '1px solid #233147', transition: 'background 0.2s' },
