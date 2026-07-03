@@ -517,7 +517,7 @@ app.post('/api/library/add-book', async (req, res) => {
     }
 
     await db.execute(
-      'INSERT INTO library_books (book_barcode_id, title, author, availability_status) VALUES (?, ?, ?, "Available")',
+      'INSERT INTO library_books (book_barcode_id, title, author, availability_status) VALUES (?, ?, ?, \'Available\')',
       [cleanBarcode, title.trim(), author ? author.trim() : 'Unknown Author']
     );
 
