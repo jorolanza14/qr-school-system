@@ -5,16 +5,17 @@ import { QRCodeSVG } from 'qrcode.react'; // 🔄 Import the dynamic QR code dra
 export default function FacultyAttendance() {
   const navigate = useNavigate();
   const [selectedSection, setSelectedSection] = useState('BSIT-4A');
+  const [rotationInterval, setRotationInterval] = useState(30); // 🎯 NEW: Dropdown tracking state (defaulting to 30s)
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [currentSessionToken, setCurrentSessionToken] = useState('');
-  const [countdown, setCountdown] = useState(15);
+  const [countdown, setCountdown] = useState(30);
 
   // 🔄 Generate a fresh, rolling cryptographic attendance token string
-  const generateNewToken = () => {
+  const generateNewToken = (intervalDuration = rotationInterval) => {
     const randomHex = Math.floor(100000 + Math.random() * 900000);
     const compactSection = selectedSection.replace(/[^a-zA-Z0-9]/g, '');
     setCurrentSessionToken(`LEC-${compactSection}-${randomHex}`);
-    setCountdown(15); // Reset clock back to 15 seconds
+    setCountdown(intervalDuration); // 🎯 FIXED: Reset countdown precisely to the selected time boundary
   };
 
   // ⏱️ Handle the active ticking down of the rolling token window
@@ -25,8 +26,8 @@ export default function FacultyAttendance() {
       intervalId = setInterval(() => {
         setCountdown((prev) => {
           if (prev <= 1) {
-            generateNewToken(); // Clock hit zero, dynamically roll to a new row token
-            return 15;
+            generateNewToken(rotationInterval); // Clock hit zero, dynamically roll token using active value
+            return rotationInterval;
           }
           return prev - 1;
         });
@@ -36,13 +37,21 @@ export default function FacultyAttendance() {
     }
 
     return () => clearInterval(intervalId);
-  }, [isSessionActive, selectedSection]);
+  }, [isSessionActive, selectedSection, rotationInterval]);
 
   // 🚀 Initialize the session projection modal
   const handleStartSession = (e) => {
     e.preventDefault();
-    generateNewToken();
+    generateNewToken(rotationInterval);
     setIsSessionActive(true);
+  };
+
+  // ⏳ Helper utility function to turn raw numeric seconds into clean screen readouts
+  const formatTimeDisplay = (seconds) => {
+    if (seconds < 60) return `${seconds}s`;
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return secs === 0 ? `${mins}m` : `${mins}m ${secs}s`;
   };
 
   return (
@@ -61,17 +70,37 @@ export default function FacultyAttendance() {
         </div>
 
         <form onSubmit={handleStartSession} style={styles.form}>
-          <label style={styles.label}>Target Section:</label>
-          <select 
-            value={selectedSection} 
-            onChange={(e) => setSelectedSection(e.target.value)} 
-            style={styles.selectInput}
-          >
-            <option value="BSIT-4A">BSIT - 4A</option>
-            <option value="BSIT-4B">BSIT - 4B</option>
-            <option value="BSIT-3A">BSIT - 3A</option>
-            <option value="BSIT-3B">BSIT - 3B</option>
-          </select>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Target Section:</label>
+            <select 
+              value={selectedSection} 
+              onChange={(e) => setSelectedSection(e.target.value)} 
+              style={styles.selectInput}
+            >
+              <option value="BSIT-4A">BSIT - 4A</option>
+              <option value="BSIT-4B">BSIT - 4B</option>
+              <option value="BSIT-3A">BSIT - 3A</option>
+              <option value="BSIT-3B">BSIT - 3B</option>
+            </select>
+          </div>
+
+          {/* 🎯 NEW DROP-DOWN: Allows complete dynamic timer configuration mapping */}
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Key Rotation Interval:</label>
+            <select 
+              value={rotationInterval} 
+              onChange={(e) => setRotationInterval(Number(e.target.value))} 
+              style={styles.selectInput}
+            >
+              <option value={15}>15 Seconds (Rapid Security Loop)</option>
+              <option value={30}>30 Seconds (Balanced Fleet Mode)</option>
+              <option value={60}>1 Minute (Standard Verification)</option>
+              <option value={120}>2 Minutes (Extended Input Window)</option>
+              <option value={300}>5 Minutes (Lecture Projection Lock)</option>
+              <option value={600}>10 Minutes (Manual Entry Safe)</option>
+              <option value={1800}>30 Minutes (Stable Permanent Slide)</option>
+            </select>
+          </div>
 
           <button type="submit" style={styles.submitBtn}>
             ⚡ Initialize Session Window
@@ -89,7 +118,7 @@ export default function FacultyAttendance() {
             <h2 style={styles.modalTitle}>Section: {selectedSection}</h2>
             <p style={styles.modalInstructions}>Scan this dynamic QR code or use the token string below via your student portal.</p>
 
-            {/* 🔄 NEW FEATURE: Real-time scannable QR code block linked to the rolling token text value */}
+            {/* 🔄 Real-time scannable QR code block linked to the rolling token text value */}
             <div style={styles.qrDisplayBox}>
               <QRCodeSVG 
                 value={currentSessionToken}
@@ -107,7 +136,7 @@ export default function FacultyAttendance() {
             </div>
 
             <div style={styles.timerTrack}>
-              Session keys rotating dynamically in: <span style={{ color: '#f59e0b', fontWeight: 'bold' }}>{countdown}s</span>
+              Session keys rotating dynamically in: <span style={{ color: '#f59e0b', fontWeight: 'bold' }}>{formatTimeDisplay(countdown)}</span>
             </div>
 
             <button onClick={() => setIsSessionActive(false)} style={styles.closeBtn}>
@@ -126,10 +155,11 @@ const styles = {
   backBtn: { background: '#334155', color: '#f1f5f9', border: 'none', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', marginBottom: '24px', fontWeight: 'bold', fontSize: '13px', transition: 'background 0.2s' },
   title: { color: '#fff', fontSize: '22px', fontWeight: 'bold', margin: '0 0 8px 0' },
   subtitle: { color: '#94a3b8', fontSize: '14px', lineHeight: '1.5', margin: '0' },
-  form: { display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' },
+  form: { display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '20px' },
+  formGroup: { display: 'flex', flexDirection: 'column', gap: '8px' },
   label: { color: '#f1f5f9', fontSize: '15px', fontWeight: '600' },
-  selectInput: { padding: '12px', borderRadius: '6px', backgroundColor: '#0f172a', color: '#fff', border: '1px solid #334155', fontSize: '15px', outline: 'none', cursor: 'pointer' },
-  submitBtn: { padding: '12px', borderRadius: '6px', backgroundColor: '#2563eb', color: '#fff', border: 'none', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', transition: 'background 0.2s', marginTop: '10px' },
+  selectInput: { padding: '12px', borderRadius: '6px', backgroundColor: '#0f172a', color: '#fff', border: '1px solid #334155', fontSize: '15px', outline: 'none', cursor: 'pointer', width: '100%', boxSizing: 'border-box' },
+  submitBtn: { padding: '12px', borderRadius: '6px', backgroundColor: '#2563eb', color: '#fff', border: 'none', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', transition: 'background 0.2s', marginTop: '10px', width: '100%' },
   
   // Modal Style System Configuration
   modalOverlay: { position: 'fixed', top: '0', left: '0', right: '0', bottom: '0', backgroundColor: 'rgba(15, 23, 42, 0.96)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: '9999', padding: '20px' },
