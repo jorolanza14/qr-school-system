@@ -65,7 +65,7 @@ app.post('/api/auth/request-otp', async (req, res) => {
     temporaryVerificationStore[email.toLowerCase().trim()] = {
       userData: { name, email, password, role, studentId, section },
       otpCode,
-      expiresAt: Date.now() + 10 * 60 * 1000 // Valid for 10 minutes
+      expiresAt: Date.now() + 30 * 60 * 1000 // 🎯 UPDATED: Valid for 30 minutes instead of 10
     };
 
     // Dispatch the actual email payload to the user (Works with Real Emails and Yopmail!)
