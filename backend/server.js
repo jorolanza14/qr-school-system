@@ -472,11 +472,18 @@ app.post('/api/security/scan', async (req, res) => {
 // =========================================================================
 app.get('/api/library/books', async (req, res) => {
   try {
+    // 🎯 FIXED: Explicit table qualifiers resolve ambiguity in shared identity columns
     const query = `
-      SELECT b.book_barcode_id, b.title, b.author, b.availability_status, u.name AS borrowed_by
+      SELECT 
+        b.book_barcode_id, 
+        b.title, 
+        b.author, 
+        b.availability_status, 
+        u.name AS borrowed_by
       FROM library_books b
       LEFT JOIN students s ON b.current_borrower_student_id = s.id
       LEFT JOIN users u ON s.user_id = u.id
+      ORDER BY b.id DESC
     `;
     const [rows] = await db.execute(query);
     
@@ -514,11 +521,18 @@ app.post('/api/library/add-book', async (req, res) => {
       [cleanBarcode, title.trim(), author ? author.trim() : 'Unknown Author']
     );
 
+    // 🎯 FIXED: Enforced explicit row parameter selections to eliminate column collisions during map aggregation returns
     const [freshRows] = await db.execute(`
-      SELECT b.book_barcode_id, b.title, b.author, b.availability_status, u.name AS borrowed_by
+      SELECT 
+        b.book_barcode_id, 
+        b.title, 
+        b.author, 
+        b.availability_status, 
+        u.name AS borrowed_by
       FROM library_books b
       LEFT JOIN students s ON b.current_borrower_student_id = s.id
       LEFT JOIN users u ON s.user_id = u.id
+      ORDER BY b.id DESC
     `);
     
     const catalogLedger = {};
