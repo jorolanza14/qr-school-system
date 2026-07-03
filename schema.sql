@@ -139,3 +139,13 @@ INSERT IGNORE INTO campus_announcements (id, title, event_date, event_time, loca
 INSERT IGNORE INTO classroom_courseware (id, title, professor_name, file_type, file_size, download_url, date_added) VALUES
 (1, 'Syllabus - Software Engineering 101', 'Prof. Smith', 'PDF', '1.4 MB', 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', '2026-06-01'),
 (2, 'Database Schema Practice Worksheet', 'Prof. Smith', 'DOCX', '842 KB', 'https://calibre-ebook.com/downloads/demos/demo.docx', '2026-06-04');
+
+-- 🚨 CRITICAL: Clear out all aggregate tracking logs for the defense
+SET FOREIGN_KEY_CHECKS = 0;
+TRUNCATE TABLE gate_attendance_logs;
+TRUNCATE TABLE classroom_attendance_logs;
+SET FOREIGN_KEY_CHECKS = 1;
+
+-- 👤 Remove temporary practice profiles to clear the matrix layout
+DELETE FROM students WHERE student_id_number NOT IN ('2026-10432');
+DELETE FROM users WHERE email NOT IN ('admin@school.edu', 'faculty@school.edu', 'librarian@school.edu', 'security@school.edu', 'student@school.edu');
