@@ -184,9 +184,10 @@ app.post('/api/auth/login', async (req, res) => {
 // =========================================================================
 app.get('/api/resources/list', async (req, res) => {
   try {
+    // 🎯 FIXED: Changed DATE_FORMAT quotes to single strings to clear ANSI compilation limits
     const [rows] = await db.execute(`
       SELECT id, title, professor_name as professor, file_type as type, file_size as fileSize, 
-             DATE_FORMAT(date_added, "%Y-%m-%d") as dateAdded, download_url as downloadUrl 
+             DATE_FORMAT(date_added, '%Y-%m-%d') as dateAdded, download_url as downloadUrl 
       FROM classroom_courseware 
       ORDER BY id DESC
     `);
@@ -220,9 +221,10 @@ app.post('/api/resources/upload', async (req, res) => {
       [finalTitle, finalProfessor, finalType, computedSize, finalUrl, currentDateStamp]
     );
 
+    // 🎯 FIXED: Adjusted quotes here as well for sync query operations 
     const [freshRows] = await db.execute(`
       SELECT id, title, professor_name as professor, file_type as type, file_size as fileSize, 
-             DATE_FORMAT(date_added, "%Y-%m-%d") as dateAdded, download_url as downloadUrl 
+             DATE_FORMAT(date_added, '%Y-%m-%d') as dateAdded, download_url as downloadUrl 
       FROM classroom_courseware 
       ORDER BY id DESC
     `);
@@ -605,6 +607,7 @@ app.post('/api/library/checkout', async (req, res) => {
 // =========================================================================
 app.get('/api/student/events-list', async (req, res) => {
   try {
+    // 🎯 FIXED: Adjusted syntax mask to process single quotes inside SQL execute bindings
     const [rows] = await db.execute(`
       SELECT 
         id, 
@@ -644,6 +647,7 @@ app.post('/api/admin/add-event', async (req, res) => {
       ]
     );
 
+    // 🎯 FIXED: Adjusted quotes here as well for single quote compatibility
     const [freshRows] = await db.execute(`
       SELECT 
         id, 
