@@ -117,8 +117,14 @@ INSERT IGNORE INTO users (name, email, password_hash, role) VALUES
 ('Josef Anza', 'student@school.edu', 'password123', 'student');
 
 -- Connect user Josef Anza to the explicit Student profile ledger matching your frontend keys
+-- 🎯 UPDATED: Injects the verified 'STU-202610432' token directly on primary insertion setup
 INSERT IGNORE INTO students (user_id, student_id_number, section_block, qr_token_fingerprint, account_status) VALUES
-((SELECT id FROM users WHERE email = 'student@school.edu'), '2026-10432', 'BSIT-4A', 'STU-TOKEN-ENZO-789456', 'Clear');
+((SELECT id FROM users WHERE email = 'student@school.edu'), '2026-10432', 'BSIT-4A', 'STU-202610432', 'Clear');
+
+-- Safety fallback execution ensuring fingerprint state matches our updated string exactly
+UPDATE students 
+SET qr_token_fingerprint = 'STU-202610432' 
+WHERE student_id_number = '2026-10432';
 
 -- Add standard physical library books matching our active QR tracking scans
 INSERT IGNORE INTO library_books (book_barcode_id, title, author, availability_status) VALUES
@@ -140,12 +146,14 @@ INSERT IGNORE INTO classroom_courseware (id, title, professor_name, file_type, f
 (1, 'Syllabus - Software Engineering 101', 'Prof. Smith', 'PDF', '1.4 MB', 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', '2026-06-01'),
 (2, 'Database Schema Practice Worksheet', 'Prof. Smith', 'DOCX', '842 KB', 'https://calibre-ebook.com/downloads/demos/demo.docx', '2026-06-04');
 
--- 🚨 CRITICAL: Clear out all aggregate tracking logs for the defense
+-- =========================================================================
+-- 🚨 CRITICAL CLEANUP: ZERO CONSOLE METRICS FOR PRE-DEFENSE SIMULATIONS
+-- =========================================================================
 SET FOREIGN_KEY_CHECKS = 0;
 TRUNCATE TABLE gate_attendance_logs;
 TRUNCATE TABLE classroom_attendance_logs;
 SET FOREIGN_KEY_CHECKS = 1;
 
--- 👤 Remove temporary practice profiles to clear the matrix layout
+-- Remove non-essential playground data profiles to preserve clean dashboard summaries
 DELETE FROM students WHERE student_id_number NOT IN ('2026-10432');
 DELETE FROM users WHERE email NOT IN ('admin@school.edu', 'faculty@school.edu', 'librarian@school.edu', 'security@school.edu', 'student@school.edu');
