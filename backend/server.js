@@ -285,19 +285,23 @@ app.get('/api/student/qr/:userId', async (req, res) => {
 // =========================================================================
 app.post('/api/admin/toggle-hold', async (req, res) => {
   const { token, newStatus } = req.body;
-  const targetToken = token.startsWith('STU-') ? token : `STU-${token.trim()}`;
   try {
+    // 🎯 FIXED: Extract the raw user ID by stripping any 'STU-' tag prefixes
+    const cleanUserId = token.replace('STU-', '');
+    
+    // 🎯 FIXED: Maps student record table row status directly via the relational foreign user_id field
     const [result] = await db.execute(
-      'UPDATE students SET account_status = ? WHERE qr_token_fingerprint = ? OR id = ?',
-      [newStatus, targetToken, token.replace('STU-', '')]
+      'UPDATE students SET account_status = ? WHERE user_id = ? OR qr_token_fingerprint = ?',
+      [newStatus, cleanUserId, token]
     );
+
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: "Target student verification token failed." });
     }
-    res.json({ success: true, message: `Student status successfully rewritten to ${newStatus}` });
+    return res.json({ success: true, message: `Student status successfully rewritten to ${newStatus}` });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: "Database update transaction error." });
+    return res.status(500).json({ success: false, message: "Database update transaction error." });
   }
 });
 
