@@ -149,15 +149,17 @@ INSERT IGNORE INTO classroom_courseware (id, title, professor_name, file_type, f
 -- 🚨 CRITICAL CLEANUP: ZERO CONSOLE METRICS FOR PRE-DEFENSE SIMULATIONS
 -- =========================================================================
 SET FOREIGN_KEY_CHECKS = 0;
+
+-- Zero out all old metric transaction logs completely
 TRUNCATE TABLE gate_attendance_logs;
 TRUNCATE TABLE classroom_attendance_logs;
-SET FOREIGN_KEY_CHECKS = 1;
 
--- 👤 DYNAMIC FIX: Cleans temp student lists but retains default seeds and ALL personnel staff roles
--- This guarantees registered faculty/librarian/admin/security profiles won't get deleted mid-run!
-DELETE FROM students 
-WHERE student_id_number NOT IN ('2026-10432');
+-- Clean up experimental student data records safely
+DELETE FROM students WHERE student_id_number NOT IN ('2026-10432');
 
+-- 🎯 FIXED: This execution layer is now safely isolated from constraint lockups
 DELETE FROM users 
 WHERE role NOT IN ('admin', 'faculty', 'library', 'security') 
   AND email NOT IN ('student@school.edu');
+
+SET FOREIGN_KEY_CHECKS = 1;
