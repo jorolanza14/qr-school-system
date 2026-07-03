@@ -56,7 +56,43 @@ CREATE TABLE IF NOT EXISTS library_books (
     FOREIGN KEY (current_borrower_student_id) REFERENCES students(id) ON DELETE SET NULL
 );
 
--- 6. DYNAMIC OTP SESSION REGISTRY (🎯 NEW: Prevents serverless RAM drops)
+-- 6. CAMPUS LOST & FOUND ASSET REGISTRY TABLE (Handles property tracking)
+CREATE TABLE IF NOT EXISTS lost_and_found_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    item_name VARCHAR(150) NOT NULL,
+    category_classification VARCHAR(100) NOT NULL,
+    location_found VARCHAR(150) NOT NULL,
+    descriptive_details TEXT,
+    tracking_tag_id VARCHAR(100) UNIQUE NOT NULL,
+    item_status ENUM('Unclaimed', 'Claimed') DEFAULT 'Unclaimed',
+    logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 7. CENTRALIZED CAMPUS ANNOUNCEMENTS TABLE (Prevents serverless dashboard flashing)
+CREATE TABLE IF NOT EXISTS campus_announcements (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(150) NOT NULL,
+    event_date DATE NOT NULL,
+    event_time VARCHAR(50) DEFAULT 'All Day',
+    location VARCHAR(150) NOT NULL,
+    organizer VARCHAR(100) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 8. CLASSROOM COURSEWARE MATRIX TABLE (Makes Faculty upload persistent for Students)
+CREATE TABLE IF NOT EXISTS classroom_courseware (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(150) NOT NULL,
+    professor_name VARCHAR(100) NOT NULL,
+    file_type VARCHAR(10) NOT NULL,
+    file_size VARCHAR(20) NOT NULL,
+    download_url TEXT NOT NULL,
+    date_added DATE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 9. DYNAMIC OTP SESSION REGISTRY (Prevents serverless RAM drops during verification)
 CREATE TABLE IF NOT EXISTS temporary_otp_verifications (
     email VARCHAR(100) PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
@@ -72,7 +108,7 @@ CREATE TABLE IF NOT EXISTS temporary_otp_verifications (
 -- 🧪 SEED DATA GENERATION: PRE-POPULATE LIVE SYSTEM PROFILES FOR DEFENSE
 -- =========================================================================
 
--- Seed Accounts into Master Users (Using IGNORE to bypass duplication constraints safely)
+-- Seed Accounts into Master Users
 INSERT IGNORE INTO users (name, email, password_hash, role) VALUES
 ('System Admin', 'admin@school.edu', 'password123', 'admin'),
 ('Prof. Smith', 'faculty@school.edu', 'password123', 'faculty'),
@@ -88,3 +124,18 @@ INSERT IGNORE INTO students (user_id, student_id_number, section_block, qr_token
 INSERT IGNORE INTO library_books (book_barcode_id, title, author, availability_status) VALUES
 ('BOOK-QA-SW-444', 'Full-Stack Software Architecture', 'Robert C. Martin', 'Available'),
 ('BOOK-QA-DB-555', 'Relational Database Design Systems', 'C.J. Date', 'Available');
+
+-- Seed Lost & Found Ledger (Populates Student Notice Board natively on mount)
+INSERT IGNORE INTO lost_and_found_items (item_name, category_classification, location_found, descriptive_details, tracking_tag_id, item_status) VALUES 
+('Apple Pencil', 'Electronics / Gadgets', 'Lobby', 'Apple pencil 2 with pink case', 'LNF-ITEM-APPL-41738', 'Unclaimed'),
+('RFID Student ID Card', 'Documents', 'Building A Room 302', 'Belongs to a 3rd Year student. Found near the projector podium desk.', 'LNF-ITEM-RFID-88392', 'Unclaimed');
+
+-- Seed Campus Announcements Ledger (Secures base values on your live feed tables)
+INSERT IGNORE INTO campus_announcements (id, title, event_date, event_time, location, organizer, description) VALUES
+(1, 'BSIT Capstone Final Defense', '2026-06-15', '08:00 AM', 'IT Lab 3, Building B', 'Dean Office', 'Final grading presentation loop for all 4th-year technology projects.'),
+(2, 'Campus Sports Festival 2026', '2026-06-22', '01:00 PM', 'Grand Gymnasium', 'Student Council', 'Annual inter-college athletic tournaments and opening ceremonies.');
+
+-- Seed Classroom Courseware Matrix (Pre-populates the shared resources tab)
+INSERT IGNORE INTO classroom_courseware (id, title, professor_name, file_type, file_size, download_url, date_added) VALUES
+(1, 'Syllabus - Software Engineering 101', 'Prof. Smith', 'PDF', '1.4 MB', 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', '2026-06-01'),
+(2, 'Database Schema Practice Worksheet', 'Prof. Smith', 'DOCX', '842 KB', 'https://calibre-ebook.com/downloads/demos/demo.docx', '2026-06-04');
