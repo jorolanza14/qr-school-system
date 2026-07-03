@@ -198,8 +198,15 @@ app.get('/api/resources/list', async (req, res) => {
 });
 
 app.post('/api/resources/upload', async (req, res) => {
-  const { title, professor, type, downloadUrl } = req.body;
-  if (!title || !type || !downloadUrl) {
+  // 🎯 FIXED: Destructure all common parameter conventions safely to prevent frontend variable naming drifts
+  const { title, professor, type, downloadUrl, download_url, file_type, professor_name } = req.body;
+  
+  const finalTitle = title?.trim();
+  const finalType = (type || file_type || 'PDF').toUpperCase();
+  const finalUrl = (downloadUrl || download_url || '').trim();
+  const finalProfessor = professor || professor_name || 'Faculty Member';
+
+  if (!finalTitle || !finalUrl) {
     return res.status(400).json({ success: false, message: "Required file resource parameters missing." });
   }
   
@@ -207,9 +214,10 @@ app.post('/api/resources/upload', async (req, res) => {
   const currentDateStamp = new Date().toISOString().split('T')[0];
 
   try {
+    // Write records into the database logs
     await db.execute(
       'INSERT INTO classroom_courseware (title, professor_name, file_type, file_size, download_url, date_added) VALUES (?, ?, ?, ?, ?, ?)',
-      [title.trim(), professor || 'Faculty Member', type.toUpperCase(), computedSize, downloadUrl.trim(), currentDateStamp]
+      [finalTitle, finalProfessor, finalType, computedSize, finalUrl, currentDateStamp]
     );
 
     const [freshRows] = await db.execute(`
@@ -221,13 +229,14 @@ app.post('/api/resources/upload', async (req, res) => {
 
     res.json({ success: true, message: "Document successfully dispatched to the student portals!", resources: freshRows });
   } catch (err) {
-    console.error("COURSEWARE UPLOAD FAULT:", err);
-    res.status(500).json({ success: false, message: "Database failure saving published asset records." });
+    // 🎯 DIAGNOSTIC LOGGING: Exposes full column/table naming crashes explicitly to Vercel terminal logs
+    console.error("🔴 CRITICAL COURSEWARE SQL ENGINE FAULT:", err.message);
+    res.status(500).json({ success: false, message: "Database failure saving published asset records.", error: err.message });
   }
 });
 
 // =========================================================================
-// 📱 2. SECURE STUDENT QR CARD ENDPOINT
+// 🌐 2. SECURE STUDENT QR CARD ENDPOINT
 // =========================================================================
 app.get('/api/student/qr/:userId', async (req, res) => {
   const { userId } = req.params;
@@ -433,7 +442,7 @@ app.post('/api/attendance/classroom-checkin', async (req, res) => {
 });
 
 // =========================================================================
-// 🛡️ 4. SECURITY TERMINAL ENDPOINT: SCAN GATE TERMINAL LOGS
+// 🌐 4. SECURITY TERMINAL ENDPOINT: SCAN GATE TERMINAL LOGS
 // =========================================================================
 app.post('/api/security/scan', async (req, res) => {
   const { qrToken } = req.body;
@@ -470,7 +479,7 @@ app.post('/api/security/scan', async (req, res) => {
 });
 
 // =========================================================================
-// 📚 5. LIBRARIAN ENDPOINTS: REAL-TIME SECURE DATABASE INTEGRATION
+// 🗃️ 5. LIBRARIAN ENDPOINTS: REAL-TIME SECURE DATABASE INTEGRATION
 // =========================================================================
 app.get('/api/library/books', async (req, res) => {
   try {
@@ -517,7 +526,7 @@ app.post('/api/library/add-book', async (req, res) => {
       return res.status(400).json({ success: false, message: "Barcode asset already cataloged." });
     }
 
-    // 🎯 FIXED: Escaped single quotes resolve ANSI_QUOTES mode interpretation constraints
+    // 🎯 ESCAPED RULES: Escaped quotes resolve critical ANSI_QUOTES parsing constraints fields cleanly
     await db.execute(
       'INSERT INTO library_books (book_barcode_id, title, author, availability_status) VALUES (?, ?, ?, \'Available\')',
       [cleanBarcode, title.trim(), author ? author.trim() : 'Unknown Author']
