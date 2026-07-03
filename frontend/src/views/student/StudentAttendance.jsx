@@ -266,12 +266,56 @@ export default function StudentAttendance() {
 }
 
 const styles = {
-  container: { minHeight: '100vh', backgroundColor: '#0f172a', fontFamily: 'sans-serif', color: '#f1f5f9' },
-  contentWrapper: { width: '100%', maxWidth: '96%', margin: '0 auto', padding: '40px 0px', boxSizing: 'border-box' },
-  statCard: { backgroundColor: '#1e293b', padding: '24px', borderRadius: '12px', border: '1px solid #334155', color: '#94a3b8' },
+  container: { 
+    minHeight: '100vh', 
+    backgroundColor: '#0f172a', 
+    fontFamily: 'sans-serif', 
+    color: '#f1f5f9',
+    paddingBottom: '120px', // 🎯 FIXED: Pushes elements upward to clear system tray/Messenger navigation overlap controls
+    boxSizing: 'border-box'
+  },
+  contentWrapper: { 
+    width: '100%', 
+    maxWidth: '96%', 
+    margin: '0 auto', 
+    padding: '20px 10px 40px 10px', // 🎯 FIXED: Safe interior grid adjustments for physical screens
+    boxSizing: 'border-box' 
+  },
+  gridStats: { 
+    display: 'grid', 
+    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+    gap: '20px', 
+    marginBottom: '40px',
+    width: '100%',
+    boxSizing: 'border-box'
+  },
+  statCard: { 
+    backgroundColor: '#1e293b', 
+    padding: '24px', 
+    borderRadius: '12px', 
+    border: '1px solid #334155', 
+    color: '#94a3b8',
+    boxSizing: 'border-box'
+  },
   statNumber: { fontSize: '32px', fontWeight: 'bold', margin: '10px 0 4px 0' },
-  workspaceGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '30px' },
-  card: { backgroundColor: '#1e293b', padding: '32px', borderRadius: '12px', border: '1px solid #334155', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column' },
+  workspaceGrid: { 
+    display: 'grid', 
+    gridTemplateColumns: 'repeat(auto-fit, minmax(100%, 1fr))', // 🎯 FIXED: Forces rows to switch from side-by-side grids into stacked blocks on mobile devices
+    gap: '30px',
+    width: '100%',
+    boxSizing: 'border-box'
+  },
+  card: { 
+    backgroundColor: '#1e293b', 
+    padding: '32px', 
+    borderRadius: '12px', 
+    border: '1px solid #334155', 
+    boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)', 
+    display: 'flex', 
+    flexDirection: 'column',
+    width: '100%',
+    boxSizing: 'border-box' // 🎯 FIXED: Ensures padding stays constrained inside fluid boundaries
+  },
   cardTitle: { color: '#fff', fontSize: '20px', margin: '0 0 8px 0', fontWeight: 'bold' },
   cardSubtitle: { color: '#94a3b8', fontSize: '14px', lineHeight: '1.5', margin: '0 0 24px 0' },
   qrContainer: { backgroundColor: '#fff', padding: '20px', borderRadius: '12px', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '0 auto 20px auto', width: '200px', height: '200px' },
@@ -286,7 +330,7 @@ const styles = {
   manualForm: { display: 'flex', flexDirection: 'column', gap: '8px' },
   label: { color: '#cbd5e1', fontSize: '14px', fontWeight: '600' },
   inputGroup: { display: 'flex', gap: '10px' },
-  input: { flex: '1', padding: '10px 14px', backgroundColor: '#0f172a', color: '#fff', border: '1px solid #334155', borderRadius: '6px', fontSize: '14px', outline: 'none' },
-  submitBtn: { backgroundColor: '#334155', color: '#fff', border: '1px solid #475569', padding: '10px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' },
+  input: { flex: '1', padding: '10px 14px', backgroundColor: '#0f172a', color: '#fff', border: '1px solid #334155', borderRadius: '6px', fontSize: '14px', outline: 'none', minWidth: '0' }, // 🎯 FIXED: minWidth prevents input expansion layout pops
+  submitBtn: { backgroundColor: '#334155', color: '#fff', border: '1px solid #475569', padding: '10px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap' },
   feedbackAlert: { marginTop: '16px', padding: '12px', borderRadius: '6px', textAlign: 'center', fontSize: '14px', fontWeight: 'bold' }
 };
