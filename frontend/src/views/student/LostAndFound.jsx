@@ -7,7 +7,7 @@ export default function LostAndFound() {
   const [newItem, setNewItem] = useState({ name: '', category: 'Electronics / Gadgets', location: '', desc: '' });
   const [feedback, setFeedback] = useState({ msg: '', type: '' });
 
-  // 🔄 
+  // 🔄 Fetch dynamic catalog lists
   const fetchLostFoundCatalog = async () => {
     try {
       const baseUrl = 'https://qr-school-system-7fp2.vercel.app';
@@ -218,12 +218,12 @@ export default function LostAndFound() {
 
 const styles = {
   container: { minHeight: '100vh', backgroundColor: '#0f172a', fontFamily: 'sans-serif', color: '#f1f5f9' },
-  contentWrapper: { width: '100%', maxWidth: '96%', margin: '0 auto', padding: '40px 0px', boxSizing: 'border-box' },
+  contentWrapper: { width: '100%', maxWidth: '96%', margin: '0 auto', padding: '40px 10px', boxSizing: 'border-box' },
   headerSection: { marginBottom: '35px' },
   pageTitle: { fontSize: '24px', fontWeight: 'bold', color: '#fff', margin: '0 0 8px 0' },
   pageSubtitle: { color: '#94a3b8', fontSize: '14px', lineHeight: '1.5', margin: '0' },
-  layoutGrid: { display: 'grid', gridTemplateColumns: '400px 1fr', gap: '30px', alignItems: 'start' },
-  card: { backgroundColor: '#1e293b', padding: '28px', borderRadius: '12px', border: '1px solid #334155', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)' },
+  layoutGrid: { display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '30px', alignItems: 'start', width: '100%' }, // 🎯 FIXED: Changed from strict grid columns to fluid wrapping rows
+  card: { backgroundColor: '#1e293b', padding: '28px', borderRadius: '12px', border: '1px solid #334155', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)', flex: '1 1 380px', width: '100%', boxSizing: 'border-box' }, // 🎯 FIXED: Adapts side-by-side or stacked cleanly
   cardHeader: { color: '#fff', fontSize: '16px', fontWeight: 'bold', margin: '0 0 20px 0', borderBottom: '1px solid #334155', paddingBottom: '12px' },
   form: { display: 'flex', flexDirection: 'column', gap: '16px' },
   formGroup: { display: 'flex', flexDirection: 'column', gap: '6px' },
@@ -233,18 +233,18 @@ const styles = {
   textarea: { padding: '10px 14px', backgroundColor: '#0f172a', color: '#fff', border: '1px solid #334155', borderRadius: '6px', fontSize: '14px', outline: 'none', fontFamily: 'sans-serif', resize: 'none' },
   submitBtn: { backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', marginTop: '8px', transition: 'background 0.2s' },
   successAlert: { marginTop: '14px', padding: '10px', borderRadius: '6px', fontSize: '13px', textAlign: 'center', fontWeight: 'bold' },
-  feedColumn: { display: 'flex', flexDirection: 'column', gap: '16px' },
+  feedColumn: { display: 'flex', flexDirection: 'column', gap: '16px', flex: '2 1 450px', width: '100%', boxSizing: 'border-box' }, // 🎯 FIXED: Automatically drops directly underneath form container block on phone viewports
   sectionHeader: { color: '#fff', fontSize: '16px', fontWeight: 'bold', margin: '0' },
   scrollContainer: { display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '650px', overflowY: 'auto', paddingRight: '6px' },
-  itemCard: { backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' },
-  itemCardLayoutBody: { display: 'flex', gap: '20px', alignItems: 'flex-start' },
-  itemCardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  itemCard: { backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', width: '100%', boxSizing: 'border-box' },
+  itemCardLayoutBody: { display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap-reverse' }, // 🎯 FIXED: Prevents QR layout boxes from jamming card text on tightly bounded mobile view windows
+  itemCardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' },
   itemName: { color: '#fff', fontSize: '16px', margin: '0', fontWeight: 'bold' },
   statusBadge: { fontSize: '11px', fontWeight: 'bold', padding: '3px 9px', borderRadius: '4px', letterSpacing: '0.5px' },
   metaRow: { display: 'flex', gap: '12px', flexWrap: 'wrap' },
   metaLabel: { color: '#94a3b8', fontSize: '12px', backgroundColor: '#0f172a', padding: '3px 8px', borderRadius: '4px', border: '1px solid #1e293b' },
-  itemDesc: { color: '#e2e8f0', fontSize: '13px', lineHeight: '1.5', margin: '0', backgroundColor: '#0f172a', padding: '12px', borderRadius: '6px', border: '1px solid #1e293b' },
-  qrBadgeWrapper: { display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px', padding: '12px', minWidth: '120px' },
+  itemDesc: { color: '#e2e8f0', fontSize: '13px', lineHeight: '1.5', margin: '0', backgroundColor: '#0f172a', padding: '12px', borderRadius: '6px', border: '1px solid #1e293b', width: '100%' },
+  qrBadgeWrapper: { display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px', padding: '12px', minWidth: '120px', flexGrow: '1' },
   qrBoxCanvasContainer: { backgroundColor: '#fff', padding: '6px', borderRadius: '4px', display: 'flex', justifyContent: 'center', alignItems: 'center' },
   qrTokenTextLabel: { fontSize: '10px', fontFamily: 'monospace', color: '#64748b', marginTop: '8px', textAlign: 'center', width: '100%', wordBreak: 'break-all' },
   custodianFooter: { fontSize: '12px', color: '#94a3b8', borderTop: '1px solid #334155', paddingTop: '10px', marginTop: '4px' },
