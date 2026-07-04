@@ -591,8 +591,9 @@ app.post('/api/library/checkout', async (req, res) => {
 
     const targetBarcode = books[0].book_barcode_id;
 
+    // 🎯 FINAL FIX: Escaped the string literal value 'Borrowed' inside the update execution statement to prevent compiler syntax anomalies
     await db.execute(
-      'UPDATE library_books SET availability_status = "Borrowed", current_borrower_student_id = ? WHERE book_barcode_id = ?',
+      'UPDATE library_books SET availability_status = \'Borrowed\', current_borrower_student_id = ? WHERE book_barcode_id = ?',
       [student.id, targetBarcode]
     );
 
