@@ -579,8 +579,9 @@ app.post('/api/library/checkout', async (req, res) => {
     if (students.length === 0) return res.status(404).json({ success: false, message: "Scanned student authorization pass token is invalid." });
     const student = students[0];
 
+    // 🎯 ESCAPED RULES FIX: Replaced double quotes around "Available" with escaped single quotes to clear the ANSI column parser constraint
     const [books] = await db.execute(
-      'SELECT book_barcode_id FROM library_books WHERE UPPER(title) = ? AND availability_status = "Available" LIMIT 1',
+      'SELECT book_barcode_id FROM library_books WHERE UPPER(title) = ? AND availability_status = \'Available\' LIMIT 1',
       [manualBookTitle.trim().toUpperCase()]
     );
 
