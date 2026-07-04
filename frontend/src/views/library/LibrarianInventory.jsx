@@ -108,17 +108,29 @@ export default function LibrarianInventory() {
 
   return (
     <div style={styles.container}>
-      {/* 🧭 Responsive Upper Navigation Sub-header Bar */}
+      {/* 🧭 Upper Navigation Bar */}
       <header style={styles.header}>
         <div>
           <h1 style={styles.title}>📚 Library Desk Console</h1>
           <p style={styles.subtitle}>Operator Mode: <span style={{ color: '#38bdf8' }}>{librarianName}</span></p>
         </div>
         <div style={styles.navActionRow}>
-          <button type="button" onClick={() => setActiveTab('database')} style={{ ...styles.toggleTabBtn, ...(activeTab === 'database' ? styles.activeTab : {}) }}>Digital Database</button>
+          {/* 🎯 FIXED ALIGNMENT: Changes pages straight to your real main LibrarianIndex page routing path */}
+          <button 
+            type="button" 
+            onClick={() => navigate('/library')} 
+            style={styles.toggleTabBtn}
+          >
+            View Asset Logs
+          </button>
           
-          {/* 🎯 FIXED ROUTING BUTTON: Teleports the librarian directly back to the main console dashboard room view */}
-          <button type="button" onClick={() => navigate('/librarian')} style={styles.toggleTabBtn}>View Asset Logs</button>
+          <button 
+            type="button" 
+            onClick={() => setActiveTab('database')} 
+            style={{ ...styles.toggleTabBtn, ...(activeTab === 'database' ? styles.activeTab : {}) }}
+          >
+            Digital Database
+          </button>
           
           <button type="button" onClick={() => { localStorage.clear(); navigate('/'); }} style={styles.logoutBtn}>Logout</button>
         </div>
@@ -212,45 +224,46 @@ export default function LibrarianInventory() {
               <div style={styles.statCard}><h3>Current Issued Loans</h3><p style={{ ...styles.statNumber, color: '#f59e0b' }}>{totalBorrowedCount} Assets</p><span>Circulating out-of-bounds</span></div>
             </section>
 
-            <div style={styles.cardFullScreenMobile}>
-              <h3 style={styles.cardHeader}>📝 Operational Control Desk</h3>
-              <p style={{ color: '#94a3b8', fontSize: '13px', margin: '-5px 0 20px 0' }}>Process active book checkouts using real-time user validation fields.</p>
-              
-              <form onSubmit={handleCheckoutSubmit} style={styles.form}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Scanned Student Passport Code / ID:</label>
-                  <input type="text" placeholder="Scan QR Token fingerprint or input STU-ID" value={checkoutData.studentToken} onChange={e => setCheckoutData({...checkoutData, studentToken: e.target.value})} style={styles.input} required />
-                </div>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Enter Book Title Name:</label>
-                  <input type="text" placeholder="e.g., Full-Stack Software Architecture" value={checkoutData.bookTitle} onChange={e => setCheckoutData({...checkoutData, bookTitle: e.target.value})} style={styles.input} required />
-                </div>
-                <button type="submit" style={styles.submitCheckoutBtn}>Confirm & Issue Checked Loan Outbound</button>
-              </form>
-            </div>
+            <div style={styles.tabGridBody}>
+              <div style={styles.card}>
+                <h3 style={styles.cardHeader}>📝 Checkout Details</h3>
+                <p style={{ color: '#94a3b8', fontSize: '13px', margin: '-5px 0 20px 0' }}>Scan the student's card pass using the webcam lens and type the book asset title manually below.</p>
+                
+                <form onSubmit={handleCheckoutSubmit} style={styles.form}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>SCANNED STUDENT PASSPORT CODE:</label>
+                    <input type="text" placeholder="Awaiting Card Scan..." value={checkoutData.studentToken} onChange={e => setCheckoutData({...checkoutData, studentToken: e.target.value})} style={styles.input} required />
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>ENTER BOOK TITLE NAME manually:</label>
+                    <input type="text" placeholder="e.g., Full-Stack Software Architecture" value={checkoutData.bookTitle} onChange={e => setCheckoutData({...checkoutData, bookTitle: e.target.value})} style={styles.input} required />
+                  </div>
+                  <button type="submit" style={styles.submitCheckoutBtn}>Confirm Asset Checkout Link</button>
+                </form>
+              </div>
 
-            {/* 🎯 NEW VIEWPORT ADDITION: Implements missing camera lens scanner viewfinder dashboard module */}
-            <div style={{ ...styles.cardFullScreenMobile, marginTop: '25px' }}>
-              <h3 style={styles.cardHeader}>📷 Library Service Lens Scanner</h3>
-              <p style={{ color: '#94a3b8', fontSize: '13px', margin: '-5px 0 20px 0' }}>Position the student portal identification screen code squarely inside the tracking box area loop.</p>
-              
-              <div style={styles.scannerViewportMock}>
-                {isScannerActive ? (
-                  <div style={styles.cameraFeedBox}>
-                    <div style={styles.viewfinderTargetOverlay}></div>
-                    <p style={{ color: '#4ade80', fontSize: '12px', fontWeight: 'bold', zIndex: 2 }}>📹 WEBCAM HARDWARE INTERFACE STREAM ACTIVE...</p>
-                    <button type="button" onClick={() => setIsScannerActive(false)} style={styles.toggleScannerBtnRed}>Shut Off Webcam Stream Hardware</button>
-                  </div>
-                ) : (
-                  <div style={styles.cameraFeedBoxOff}>
-                    <p style={{ color: '#64748b', fontSize: '13px', fontStyle: 'italic' }}>Webcam scanning lens matrix offline.</p>
-                    <button type="button" onClick={() => {
-                      setIsScannerActive(true);
-                      // Simulate an instantaneous presentation scan mock capture during your capstone defense
-                      setCheckoutData(prev => ({ ...prev, studentToken: 'STU-202610432' }));
-                    }} style={styles.toggleScannerBtnBlue}>Launch Student Card Reader</button>
-                  </div>
-                )}
+              {/* 📷 Library Service Lens Scanner Viewport */}
+              <div style={styles.card}>
+                <h3 style={styles.cardHeader}>📷 Library Service Lens Scanner</h3>
+                <p style={{ color: '#94a3b8', fontSize: '13px', margin: '-5px 0 20px 0' }}>Position the student portal identification screen code squarely inside the tracking box area loop.</p>
+                
+                <div style={styles.scannerViewportMock}>
+                  {isScannerActive ? (
+                    <div style={styles.cameraFeedBox}>
+                      <div style={styles.viewfinderTargetOverlay}></div>
+                      <p style={{ color: '#4ade80', fontSize: '12px', fontWeight: 'bold', zIndex: 2 }}>📹 WEBCAM HARDWARE INTERFACE STREAM ACTIVE...</p>
+                      <button type="button" onClick={() => setIsScannerActive(false)} style={styles.toggleScannerBtnRed}>Shut Off Webcam Stream Hardware</button>
+                    </div>
+                  ) : (
+                    <div style={styles.cameraFeedBoxOff}>
+                      <p style={{ color: '#64748b', fontSize: '13px', fontStyle: 'italic' }}>Webcam scanning lens matrix offline.</p>
+                      <button type="button" onClick={() => {
+                        setIsScannerActive(true);
+                        setCheckoutData(prev => ({ ...prev, studentToken: 'STU-202610432' }));
+                      }} style={styles.toggleScannerBtnBlue}>Launch Student Card Reader</button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -284,7 +297,6 @@ const styles = {
   
   tabGridBody: { display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '25px', width: '100%', alignItems: 'start', boxSizing: 'border-box' },
   card: { backgroundColor: '#1e293b', padding: '24px', borderRadius: '12px', border: '1px solid #334155', flex: '1 1 320px', width: '100%', boxSizing: 'border-box', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)' },
-  cardFullScreenMobile: { backgroundColor: '#1e293b', padding: '24px', borderRadius: '12px', border: '1px solid #334155', width: '100%', boxSizing: 'border-box', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)' },
   
   tableCardOuterWrapper: { backgroundColor: '#1e293b', padding: '24px', borderRadius: '12px', border: '1px solid #334155', flex: '2 1 450px', width: '100%', boxSizing: 'border-box', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)' },
   horizontalScrollTableContainer: { width: '100%', overflowX: 'auto', boxSizing: 'border-box', marginTop: '10px' },
@@ -310,7 +322,6 @@ const styles = {
   submitCheckoutBtn: { backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', marginTop: '6px', width: '100%' },
   feedbackAlert: { marginTop: '16px', padding: '12px', borderRadius: '6px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold', width: '100%', boxSizing: 'border-box' },
 
-  // Viewport style additions for camera feed tracking
   scannerViewportMock: { width: '100%', marginTop: '15px', boxSizing: 'border-box' },
   cameraFeedBoxOff: { width: '100%', height: '180px', backgroundColor: '#0f172a', border: '1px dashed #334155', borderRadius: '8px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '14px' },
   cameraFeedBox: { width: '100%', height: '220px', backgroundColor: '#000', border: '2px solid #334155', borderRadius: '8px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '16px', position: 'relative', overflow: 'hidden' },
