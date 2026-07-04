@@ -312,7 +312,7 @@ app.post('/api/admin/toggle-hold', async (req, res) => {
     return res.json({ success: true, message: `Student status successfully rewritten to ${newStatus}` });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ success: false, message: "Database update transaction error." });
+    res.status(500).json({ success: false, message: "Database update transaction error." });
   }
 });
 
@@ -598,7 +598,8 @@ app.post('/api/library/checkout', async (req, res) => {
     res.json({ success: true, message: `Successfully checked out to student account ${student.name}!` });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: "Library engine checkout transaction fault." });
+    // 🎯 DIAGNOSTIC LOGGING CRITICAL FIX: Exposed the active err.message string parameters directly to the JSON response interface
+    res.status(500).json({ success: false, message: `Library engine checkout transaction fault: ${err.message}` });
   }
 });
 
