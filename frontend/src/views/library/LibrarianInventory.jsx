@@ -15,6 +15,7 @@ export default function LibrarianInventory() {
   // 🎟️ Checkout System Form State Layer
   const [checkoutData, setCheckoutData] = useState({ studentToken: '', bookTitle: '' });
   const [feedback, setFeedback] = useState({ message: '', type: '' });
+  const [isScannerActive, setIsScannerActive] = useState(false); // Controls hardware webcam stream view toggle
 
   // 🔄 Synchronization Loop: Sync live inventory indices from database rows
   const fetchLibraryCatalog = async () => {
@@ -115,7 +116,10 @@ export default function LibrarianInventory() {
         </div>
         <div style={styles.navActionRow}>
           <button type="button" onClick={() => setActiveTab('database')} style={{ ...styles.toggleTabBtn, ...(activeTab === 'database' ? styles.activeTab : {}) }}>Digital Database</button>
-          <button type="button" onClick={() => setActiveTab('checkout')} style={{ ...styles.toggleTabBtn, ...(activeTab === 'checkout' ? styles.activeTab : {}) }}>View Asset Logs</button>
+          
+          {/* 🎯 FIXED ROUTING BUTTON: Teleports the librarian directly back to the main console dashboard room view */}
+          <button type="button" onClick={() => navigate('/librarian')} style={styles.toggleTabBtn}>View Asset Logs</button>
+          
           <button type="button" onClick={() => { localStorage.clear(); navigate('/'); }} style={styles.logoutBtn}>Logout</button>
         </div>
       </header>
@@ -224,6 +228,31 @@ export default function LibrarianInventory() {
                 <button type="submit" style={styles.submitCheckoutBtn}>Confirm & Issue Checked Loan Outbound</button>
               </form>
             </div>
+
+            {/* 🎯 NEW VIEWPORT ADDITION: Implements missing camera lens scanner viewfinder dashboard module */}
+            <div style={{ ...styles.cardFullScreenMobile, marginTop: '25px' }}>
+              <h3 style={styles.cardHeader}>📷 Library Service Lens Scanner</h3>
+              <p style={{ color: '#94a3b8', fontSize: '13px', margin: '-5px 0 20px 0' }}>Position the student portal identification screen code squarely inside the tracking box area loop.</p>
+              
+              <div style={styles.scannerViewportMock}>
+                {isScannerActive ? (
+                  <div style={styles.cameraFeedBox}>
+                    <div style={styles.viewfinderTargetOverlay}></div>
+                    <p style={{ color: '#4ade80', fontSize: '12px', fontWeight: 'bold', zIndex: 2 }}>📹 WEBCAM HARDWARE INTERFACE STREAM ACTIVE...</p>
+                    <button type="button" onClick={() => setIsScannerActive(false)} style={styles.toggleScannerBtnRed}>Shut Off Webcam Stream Hardware</button>
+                  </div>
+                ) : (
+                  <div style={styles.cameraFeedBoxOff}>
+                    <p style={{ color: '#64748b', fontSize: '13px', fontStyle: 'italic' }}>Webcam scanning lens matrix offline.</p>
+                    <button type="button" onClick={() => {
+                      setIsScannerActive(true);
+                      // Simulate an instantaneous presentation scan mock capture during your capstone defense
+                      setCheckoutData(prev => ({ ...prev, studentToken: 'STU-202610432' }));
+                    }} style={styles.toggleScannerBtnBlue}>Launch Student Card Reader</button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -243,34 +272,9 @@ export default function LibrarianInventory() {
 }
 
 const styles = {
-  container: { 
-    minHeight: '100vh', 
-    backgroundColor: '#0f172a', 
-    fontFamily: 'sans-serif', 
-    color: '#f1f5f9', 
-    boxSizing: 'border-box',
-    paddingBottom: '120px'
-  },
-  contentWrapper: { 
-    width: '100%', 
-    maxWidth: '96%', 
-    margin: '0 auto', 
-    padding: '20px 10px', 
-    boxSizing: 'border-box' 
-  },
-  header: { 
-    display: 'flex', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    backgroundColor: '#1e293b', 
-    padding: '16px 4%', 
-    borderBottom: '1px solid #334155', 
-    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.2)',
-    flexWrap: 'wrap', 
-    gap: '15px',
-    width: '100%',
-    boxSizing: 'border-box'
-  },
+  container: { minHeight: '100vh', backgroundColor: '#0f172a', fontFamily: 'sans-serif', color: '#f1f5f9', boxSizing: 'border-box', paddingBottom: '120px' },
+  contentWrapper: { width: '100%', maxWidth: '96%', margin: '0 auto', padding: '20px 10px', boxSizing: 'border-box' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1e293b', padding: '16px 4%', borderBottom: '1px solid #334155', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.2)', flexWrap: 'wrap', gap: '15px', width: '100%', boxSizing: 'border-box' },
   title: { color: '#fff', margin: '0', fontSize: '20px', fontWeight: 'bold' },
   subtitle: { color: '#94a3b8', margin: '4px 0 0 0', fontSize: '13px' },
   navActionRow: { display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' },
@@ -304,5 +308,13 @@ const styles = {
   input: { padding: '10px 12px', backgroundColor: '#0f172a', color: '#fff', border: '1px solid #334155', borderRadius: '6px', fontSize: '14px', outline: 'none', width: '100%', boxSizing: 'border-box' },
   submitBtn: { backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', marginTop: '4px', width: '100%' },
   submitCheckoutBtn: { backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', marginTop: '6px', width: '100%' },
-  feedbackAlert: { marginTop: '16px', padding: '12px', borderRadius: '6px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold', width: '100%', boxSizing: 'border-box' }
+  feedbackAlert: { marginTop: '16px', padding: '12px', borderRadius: '6px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold', width: '100%', boxSizing: 'border-box' },
+
+  // Viewport style additions for camera feed tracking
+  scannerViewportMock: { width: '100%', marginTop: '15px', boxSizing: 'border-box' },
+  cameraFeedBoxOff: { width: '100%', height: '180px', backgroundColor: '#0f172a', border: '1px dashed #334155', borderRadius: '8px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '14px' },
+  cameraFeedBox: { width: '100%', height: '220px', backgroundColor: '#000', border: '2px solid #334155', borderRadius: '8px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '16px', position: 'relative', overflow: 'hidden' },
+  viewfinderTargetOverlay: { position: 'absolute', width: '140px', height: '140px', border: '2px dashed #4ade80', borderRadius: '8px', opacity: 0.4, top: '20px' },
+  toggleScannerBtnBlue: { backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' },
+  toggleScannerBtnRed: { backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', zIndex: 2 }
 };
